@@ -94,15 +94,16 @@ body::before {
     left: 0;
     width: 100vw;
     height: 100vh;
-    object-fit: contain;       /* keep aspect ratio without cropping */
-    object-position: center;   /* center the image/video in viewport */
+    object-fit: contain;       /* fit inside viewport, no cropping */
+    object-position: center;   /* center horizontally and vertically */
     background-color: #000;    /* fallback for empty space */
-    z-index: -1;
+    z-index: 0;
 }
 
 #bgImage {
     display: none; /* hidden by default, only shows if video fails */
 }
+
 
 /* Foreground content over video/image */
 .currentlyPlaying .content {

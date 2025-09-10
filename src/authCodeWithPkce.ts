@@ -65,10 +65,8 @@ export async function getAccessToken(clientId: string, code: string): Promise<st
     console.log("Token response", data);
 
     // Save tokens
-    localStorage.setItem("access_token", data.access_token);
-    if (data.refresh_token) {
-        localStorage.setItem("refresh_token", data.refresh_token);
-    }
+    saveAccessAndRefreshToken(data.access_token, data.refreshToken, data.expires_in);
+
 
     return data.access_token;
 }
@@ -84,19 +82,39 @@ export async function refreshAccessToken(clientId: string): Promise<string> {
 
     const result = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
         body: params
     });
 
     const data = await result.json();
     console.log("Refreshed token response", data);
-
-    if (data.access_token) {
-        localStorage.setItem("access_token", data.access_token);
-    }
-
+    saveAccessAndRefreshToken(data.access_token, data.refreshToken, data.expires_in);
     return data.access_token;
 }
 
 
+export function setCookie(name: string, value: string, days: number) {
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
+}
+
+export function getCookie(name: string) {
+    return document.cookie.split('; ').reduce((r, v) => {
+        const parts = v.split('=');
+        return parts[0] === name ? decodeURIComponent(parts[1]) : r
+    }, '');
+}
+
+function saveAccessAndRefreshToken(accessToken: string, refreshToken: string, expiresIn: number) {
+    if (accessToken != null) {
+        localStorage.setItem("access_token", accessToken);
+
+        setCookie('spotifyAccessToken', accessToken, 7);
+    }
+    if (refreshToken != null) {
+        localStorage.setItem("refresh_token", refreshToken);
+        setCookie('spotifyRefreshToken', refreshToken, 7);
+        setCookie('spotifyTokenExpiry', (Date.now() + expiresIn * 1000).toString(), 7);
+    }
+}
 
