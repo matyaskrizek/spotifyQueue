@@ -2,15 +2,26 @@ export async function redirectToAuthCodeFlow(clientId: string) {
     const verifier = generateCodeVerifier(128);
     const challenge = await generateCodeChallenge(verifier);
 
+    // Add queue-related scopes
+    const scope = [
+        'user-read-private',
+        'user-read-email',
+        'user-read-currently-playing',
+        'user-read-playback-state',
+        'user-modify-playback-state'
+    ].join(' ');
+
     localStorage.setItem("verifier", verifier);
 
     const params = new URLSearchParams();
     params.append("client_id", clientId);
     params.append("response_type", "code");
     params.append("redirect_uri", "http://127.0.0.1:5173/callback");
-    params.append("scope", "user-read-private user-read-email user-read-currently-playing user-read-playback-state");
+    params.append("scope", scope);
     params.append("code_challenge_method", "S256");
     params.append("code_challenge", challenge);
+
+    console.log(`https://accounts.spotify.com/authorize?${params.toString()}`);
 
     document.location = `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
@@ -50,8 +61,41 @@ export async function getAccessToken(clientId: string, code: string): Promise<st
         body: params
     });
 
-    const { access_token } = await result.json();
-    return access_token;
+    const data = await result.json();
+    console.log("Token response", data);
+
+    // Save tokens
+    localStorage.setItem("access_token", data.access_token);
+    if (data.refresh_token) {
+        localStorage.setItem("refresh_token", data.refresh_token);
+    }
+
+    return data.access_token;
+}
+
+export async function refreshAccessToken(clientId: string): Promise<string> {
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (!refreshToken) throw new Error("No refresh token available");
+
+    const params = new URLSearchParams();
+    params.append("client_id", clientId);
+    params.append("grant_type", "refresh_token");
+    params.append("refresh_token", refreshToken);
+
+    const result = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params
+    });
+
+    const data = await result.json();
+    console.log("Refreshed token response", data);
+
+    if (data.access_token) {
+        localStorage.setItem("access_token", data.access_token);
+    }
+
+    return data.access_token;
 }
 
 
