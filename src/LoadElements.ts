@@ -1,9 +1,10 @@
+
 import {fetchQueue, fetchCurrentlyPlaying} from "./spotifyService.ts"
 
 let lastTrackId: string | null = null;
 // @ts-ignore
 let queuePollingInterval: number;
-
+const songMap = await loadSongDanceMap("/LineDanceMasterList.txt");
 
 
 // Poll every 5 seconds (adjust as needed)
@@ -11,13 +12,8 @@ export function startQueuePolling(accessToken: string) {
     refreshQueue(accessToken);  // immediate fetch
     queuePollingInterval = window.setInterval(() => {
         refreshQueue(accessToken);
-    }, 5000);
+    }, 1000);
 }
-
-// Stop polling if needed
-/*function stopQueuePolling() {
-    clearInterval(queuePollingInterval);
-}*/
 
 export function populateProfileImage(profile: UserProfile) {
 
@@ -33,9 +29,24 @@ export function populateProfileImage(profile: UserProfile) {
 
 export function populateQueue(fullQueue: FullQueue) {
     // Loading current Song Name
+
     document.getElementById("songTitle")!.innerText = fullQueue.currently_playing.name;
+    let danceName = songMap.get(fullQueue.currently_playing.name);
+    console.log("Dance Map:", songMap);
+    console.log("Dance Name:", danceName);
+    const danceTitleElmnt = document.getElementById("danceTitle");
+    if (danceTitleElmnt) {
+        if (danceName) {
+            danceTitleElmnt.innerText = danceName;
+            danceTitleElmnt.style.visibility = "visible";  // show the element
+        } else {
+            danceTitleElmnt.innerText = "";
+            danceTitleElmnt.style.visibility = "hidden";   // hide the element
+        }
+    }
     // Updating the current song album cover
     loadBackground((fullQueue.currently_playing as unknown as TrackObject).album?.images[0]?.url ?? (fullQueue.currently_playing as unknown as EpisodeObject).images[0]?.url ?? '');
+
     // Loading the next three songs in the queue
     const nextSongs: QueueItem[] = fullQueue.queue.slice(0, 3);
     displayNextThreeSongs(nextSongs);
@@ -126,4 +137,23 @@ function displayNextThreeSongs(queue: QueueItem[]) {
         div.appendChild(img);
         container.appendChild(div);
     });
+}
+
+// Load the Line Dance Map from the text file
+export async function loadSongDanceMap(fileUrl: string): Promise<Map<string, string>> {
+    const response = await fetch(fileUrl);
+    if (!response.ok) throw new Error(`Failed to fetch ${fileUrl}: ${response.statusText}`);
+
+    const text = await response.text();
+    const map = new Map<string, string>();
+
+    text.split("\n").forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        const [songName, danceName] = trimmed.split(",");
+        if (songName && danceName) map.set(songName, danceName);
+    });
+
+    return map;
 }

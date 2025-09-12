@@ -46,6 +46,7 @@ async function generateCodeChallenge(codeVerifier: string) {
 export async function getAccessToken(clientId: string, code: string): Promise<string> {
 
     const verifier = localStorage.getItem("verifier");
+    console.log("verifier:", verifier);
 
     const params = new URLSearchParams();
     params.append("client_id", clientId);
@@ -60,8 +61,10 @@ export async function getAccessToken(clientId: string, code: string): Promise<st
         body: params
     });
     const data = await result.json();
+    console.log("spotify token response:", data);
     // Save tokens
-    saveAccessAndRefreshToken(data.access_token, data.refreshToken, data.expires_in);
+    saveAccessAndRefreshToken(data.access_token, data.refresh_token, data.expires_in);
+    window.history.replaceState({}, document.title, "/");
 
     return data.access_token;
 }
@@ -82,7 +85,7 @@ export async function refreshAccessToken(clientId: string): Promise<string> {
     });
 
     const data = await result.json();
-    saveAccessAndRefreshToken(data.access_token, data.refreshToken, data.expires_in);
+    saveAccessAndRefreshToken(data.access_token, data.refresh_token, data.expires_in);
     return data.access_token;
 }
 
@@ -90,12 +93,12 @@ function saveAccessAndRefreshToken(accessToken: string, refreshToken: string, ex
     if (accessToken != null) {
         localStorage.setItem("access_token", accessToken);
 
-        setCookie('spotifyAccessToken', accessToken, 7);
+        setCookie('spotifyAccessTokenForMyApp', accessToken, 7);
     }
     if (refreshToken != null) {
         localStorage.setItem("refresh_token", refreshToken);
-        setCookie('spotifyRefreshToken', refreshToken, 7);
-        setCookie('spotifyTokenExpiry', (Date.now() + expiresIn * 1000).toString(), 7);
+        setCookie('spotifyRefreshTokenForMyApp', refreshToken, 7);
+        setCookie('spotifyTokenExpiryForMyApp', (Date.now() + expiresIn * 1000).toString(), 7);
     }
 }
 

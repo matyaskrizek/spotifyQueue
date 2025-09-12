@@ -13,12 +13,25 @@ async function init() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code") || null;
     const maxRetries = 3;
+    let accessToken: string | null = null;
+    let refreshToken: string | null = null;
+
+    console.log("code: ", code);
+    if (code) {
+        try {
+            console.log("Exchanging code for new access token...");
+            accessToken = await getAccessToken(clientId, code);// ✅ stop here — don’t check stale cookies
+        } catch (err) {
+            console.error("Code exchange failed, redirecting:", err);
+            await redirectToAuthCodeFlow(clientId);
+            return;
+        }
+    }
 
     // Retrieve tokens from cookies
-    const tokenExpiry = Number(getCookie("spotifyTokenExpiry") || "0");
-    let accessToken: string | null = getCookie("spotifyAccessToken") || null;
-
-    let refreshToken: string | null = getCookie("spotifyRefreshToken") || null;
+    const tokenExpiry = Number(getCookie("spotifyTokenExpiryForMyApp") || "0");
+    if(!accessToken) accessToken = getCookie("spotifyAccessTokenForMyApp") || null;
+    if(!refreshToken) refreshToken = getCookie("spotifyRefreshTokenForMyApp") || null;
     let retries: number = Number(getCookie("spotifyRetries") || "0");
 
     // I hate you typescript. Only you would infer that the return type 'undefined'
@@ -29,13 +42,14 @@ async function init() {
     if(refreshToken == "undefined"){
         refreshToken = null;
     }
+    console.log("accessToken: ", accessToken);
 
     try {
         // Only retry locally if token missing or expired, up to maxRetries
         if (!accessToken || Date.now() > tokenExpiry) {
             if (refreshToken && retries < maxRetries) {
                 try {
-                    accessToken = await refreshAccessToken(refreshToken);
+                    accessToken = await refreshAccessToken(clientId);
                     setCookie("spotifyAccessToken", accessToken, 1); // persist new access token
                     setCookie("spotifyRetries", "0", 1); // reset retries
                 } catch (err) {
@@ -71,6 +85,9 @@ async function init() {
                 return; // stop execution; page reloads
             }
         }
+
+        console.log("AccessToken after auth attempts: ", accessToken);
+        console.log("code after all auth attempts: ", code);
 
         // ---- Valid access token here ----
         const profile = await fetchProfile(accessToken);

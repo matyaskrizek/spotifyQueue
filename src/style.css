@@ -13,14 +13,22 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Fullscreen static background */
 body {
     margin: 0;
     min-height: 100vh;
     display: flex;
-    justify-content: center; /* horizontal centering */
-    align-items: center;     /* vertical centering */
-    background-color: #f4f2f2; /* keep your dark theme */
+    justify-content: center;
+    align-items: center;
+
+    /* Background image settings */
+    background-image: url('/background.PNG'); /* replace with your file path */
+    background-size: cover;           /* scale image to cover entire viewport */
+    background-position: center;      /* center the image */
+    background-repeat: no-repeat;     /* prevent tiling */
+    background-attachment: fixed;     /* keep background fixed when scrolling */
 }
+
 
 /* floating profile stays in the top right */
 #profile {
@@ -74,8 +82,6 @@ body {
 .currentlyPlaying img {
     max-width: 60%;
     height: auto;
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
 }
 
 #bgVideo,
@@ -116,6 +122,28 @@ body {
 .currentlyPlaying .content h1 {
     font-size: 4rem;
     margin: 0;
+}
+
+.currentlyPlaying .danceContent {
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* perfectly center */
+    z-index: 2;
+    text-align: center;
+    color: white;
+    text-shadow: 0 0 6px rgba(0,0,0,0.9), 0 2px 6px rgba(0,0,0,0.7); /* strong outline */
+    pointer-events: none;
+    visibility: hidden;
+    /* Pulse animation (can be triggered on song change) */
+    animation: pulseBeat 1s ease-in-out infinite;
+}
+
+/* Song title styling */
+.currentlyPlaying .danceContent h1 {
+    font-size: 4rem;
+    margin: 0;
+    visibility: hidden;
 }
 
 /* Pulse animation keyframes */
