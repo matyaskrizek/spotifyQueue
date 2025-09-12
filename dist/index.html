@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>My Spotify Profile</title>
+  <script type="module" crossorigin src="/assets/index-D8fVTCRp.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-v9Fhqw_i.css">
+</head>
+<body>
+<!-- Left sidebar (empty for now) -->
+<aside class="leftSidebar"></aside>
+
+<a id="profile" href="https://accounts.spotify.com/login">
+        <img id="imgUrl" src="/assets/default-avatar-BUtsRbq3.png" alt="Spotify Profile" />
+</a>
+
+<section class="currentlyPlaying">
+    <!-- Background video -->
+    <video autoplay muted loop playsinline id="bgVideo">
+        <source src="/background.mp4" type="video/mp4">
+    </video>
+
+    <!-- Fallback image -->
+    <img id="bgImage" src="/assets/background-Cl0qJ5CA.PNG" alt="Background Image">
+
+    <!-- Foreground content -->
+    <div class="content">
+        <h1 id="songTitle">Song Title</h1>
+    </div>
+</section>
+
+<div id="upNextColumn"></div>
+
+</body>
+</html>
