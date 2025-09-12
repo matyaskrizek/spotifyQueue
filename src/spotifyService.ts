@@ -4,13 +4,14 @@ import { refreshAccessToken } from "./authCodeWithPkce";
 const clientId = "bdb65f4eee034a86828ae4c9ee70a8e6"; // Replace with your client id
 
 export async function fetchProfile(token: string): Promise<UserProfile> {
+    console.log(`Fetching profile for ${token}`);
     const result = await fetchWithAuth(
         "https://api.spotify.com/v1/me",
         token,
         clientId
     );
     if (!result.ok) {
-        console.error("Profile fetch failed", result.status, await result.text());
+        console.error("Profile fetch failed", result.status, result.statusText,  await result.text());
         throw new Error("Failed to fetch profile");
     }
     return await result.json();
@@ -28,7 +29,7 @@ export async function fetchQueue(token: string): Promise<FullQueue | null> {
             clientId
         );
         if (!result.ok) {
-            console.error("Queue fetch failed", result.status, await result.text());
+            console.error("Queue fetch failed", result.status, result.statusText, await result.text());
             throw new Error("Failed to fetch queue");
         }
         return await result.json();

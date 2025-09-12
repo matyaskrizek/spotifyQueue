@@ -22,7 +22,7 @@ body {
     align-items: center;
 
     /* Background image settings */
-    background-image: url('../public/background.PNG'); /* replace with your file path */
+    background-image: url('/background.PNG'); /* replace with your file path */
     background-size: cover;           /* scale image to cover entire viewport */
     background-position: center;      /* center the image */
     background-repeat: no-repeat;     /* prevent tiling */
@@ -82,8 +82,6 @@ body {
 .currentlyPlaying img {
     max-width: 60%;
     height: auto;
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
 }
 
 #bgVideo,
@@ -124,6 +122,28 @@ body {
 .currentlyPlaying .content h1 {
     font-size: 4rem;
     margin: 0;
+}
+
+.currentlyPlaying .danceContent {
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* perfectly center */
+    z-index: 2;
+    text-align: center;
+    color: white;
+    text-shadow: 0 0 6px rgba(0,0,0,0.9), 0 2px 6px rgba(0,0,0,0.7); /* strong outline */
+    pointer-events: none;
+    visibility: hidden;
+    /* Pulse animation (can be triggered on song change) */
+    animation: pulseBeat 1s ease-in-out infinite;
+}
+
+/* Song title styling */
+.currentlyPlaying .danceContent h1 {
+    font-size: 4rem;
+    margin: 0;
+    visibility: hidden;
 }
 
 /* Pulse animation keyframes */
