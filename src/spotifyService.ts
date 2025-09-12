@@ -4,6 +4,7 @@ import { refreshAccessToken } from "./authCodeWithPkce";
 const clientId = "bdb65f4eee034a86828ae4c9ee70a8e6"; // Replace with your client id
 
 export async function fetchProfile(token: string): Promise<UserProfile> {
+    console.log("Inside getting the user profile token:", token);
     const result = await fetchWithAuth(
         "https://api.spotify.com/v1/me",
         token,

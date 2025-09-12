@@ -1,4 +1,4 @@
-export async function redirectToAuthCodeFlow(clientId: string) {
+export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
     const verifier = generateCodeVerifier(128);
     const challenge = await generateCodeChallenge(verifier);
 
@@ -46,7 +46,10 @@ async function generateCodeChallenge(codeVerifier: string) {
 }
 
 export async function getAccessToken(clientId: string, code: string): Promise<string> {
+    console.log(`Getting access token: ${clientId}`);
+
     const verifier = localStorage.getItem("verifier");
+    console.log("Code verifier:", verifier);
 
     const params = new URLSearchParams();
     params.append("client_id", clientId);
@@ -98,12 +101,20 @@ export function setCookie(name: string, value: string, days: number) {
     document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
 }
 
-export function getCookie(name: string) {
-    return document.cookie.split('; ').reduce((r, v) => {
-        const parts = v.split('=');
-        return parts[0] === name ? decodeURIComponent(parts[1]) : r
-    }, '');
+export function getCookie(name: string): string | null {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+        return parts.pop()?.split(";").shift() || null; // always return string or null
+    }
+    return null;
 }
+
+
+export function deleteCookie(name: string) {
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+}
+
 
 function saveAccessAndRefreshToken(accessToken: string, refreshToken: string, expiresIn: number) {
     if (accessToken != null) {
