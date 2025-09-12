@@ -23,15 +23,15 @@ async function init() {
 
     let refreshToken: string | null = getCookie("spotifyRefreshToken") || null;
     let retries: number = Number(getCookie("spotifyRetries") || "0");
+
+    // I hate you typescript. Only you would infer that the return type 'undefined'
+    // would be a string and not actually undefined smh
     if(accessToken == "undefined"){
         accessToken = null;
     }
     if(refreshToken == "undefined"){
         refreshToken = null;
     }
-    console.log("TOP OF INIT");
-    console.log("accessToken at top of INIT:", accessToken);
-    console.log("code at top of INIt:", code);
 
     try {
         // Only retry locally if token missing or expired, up to maxRetries

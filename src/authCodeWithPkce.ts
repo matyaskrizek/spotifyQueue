@@ -21,8 +21,6 @@ export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
     params.append("code_challenge_method", "S256");
     params.append("code_challenge", challenge);
 
-    console.log(`https://accounts.spotify.com/authorize?${params.toString()}`);
-
     document.location = `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
 
@@ -46,10 +44,8 @@ async function generateCodeChallenge(codeVerifier: string) {
 }
 
 export async function getAccessToken(clientId: string, code: string): Promise<string> {
-    console.log(`Getting access token: ${clientId}`);
 
     const verifier = localStorage.getItem("verifier");
-    console.log("Code verifier:", verifier);
 
     const params = new URLSearchParams();
     params.append("client_id", clientId);
@@ -63,13 +59,9 @@ export async function getAccessToken(clientId: string, code: string): Promise<st
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: params
     });
-
     const data = await result.json();
-    console.log("Token response", data);
-
     // Save tokens
     saveAccessAndRefreshToken(data.access_token, data.refreshToken, data.expires_in);
-
 
     return data.access_token;
 }
@@ -90,11 +82,22 @@ export async function refreshAccessToken(clientId: string): Promise<string> {
     });
 
     const data = await result.json();
-    console.log("Refreshed token response", data);
     saveAccessAndRefreshToken(data.access_token, data.refreshToken, data.expires_in);
     return data.access_token;
 }
 
+function saveAccessAndRefreshToken(accessToken: string, refreshToken: string, expiresIn: number) {
+    if (accessToken != null) {
+        localStorage.setItem("access_token", accessToken);
+
+        setCookie('spotifyAccessToken', accessToken, 7);
+    }
+    if (refreshToken != null) {
+        localStorage.setItem("refresh_token", refreshToken);
+        setCookie('spotifyRefreshToken', refreshToken, 7);
+        setCookie('spotifyTokenExpiry', (Date.now() + expiresIn * 1000).toString(), 7);
+    }
+}
 
 export function setCookie(name: string, value: string, days: number) {
     const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -110,22 +113,7 @@ export function getCookie(name: string): string | null {
     return null;
 }
 
-
 export function deleteCookie(name: string) {
     document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-}
-
-
-function saveAccessAndRefreshToken(accessToken: string, refreshToken: string, expiresIn: number) {
-    if (accessToken != null) {
-        localStorage.setItem("access_token", accessToken);
-
-        setCookie('spotifyAccessToken', accessToken, 7);
-    }
-    if (refreshToken != null) {
-        localStorage.setItem("refresh_token", refreshToken);
-        setCookie('spotifyRefreshToken', refreshToken, 7);
-        setCookie('spotifyTokenExpiry', (Date.now() + expiresIn * 1000).toString(), 7);
-    }
 }
 
