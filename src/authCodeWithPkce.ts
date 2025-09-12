@@ -1,6 +1,15 @@
-export async function redirectToAuthCodeFlow(clientId: string) {
+export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
     const verifier = generateCodeVerifier(128);
     const challenge = await generateCodeChallenge(verifier);
+
+    // Add queue-related scopes
+    const scope = [
+        'user-read-private',
+        'user-read-email',
+        'user-read-currently-playing',
+        'user-read-playback-state',
+        'user-modify-playback-state'
+    ].join(' ');
 
     localStorage.setItem("verifier", verifier);
 
@@ -8,7 +17,7 @@ export async function redirectToAuthCodeFlow(clientId: string) {
     params.append("client_id", clientId);
     params.append("response_type", "code");
     params.append("redirect_uri", "http://127.0.0.1:5173/callback");
-    params.append("scope", "user-read-private user-read-email user-read-currently-playing user-read-playback-state");
+    params.append("scope", scope);
     params.append("code_challenge_method", "S256");
     params.append("code_challenge", challenge);
 
@@ -35,6 +44,7 @@ async function generateCodeChallenge(codeVerifier: string) {
 }
 
 export async function getAccessToken(clientId: string, code: string): Promise<string> {
+
     const verifier = localStorage.getItem("verifier");
 
     const params = new URLSearchParams();
@@ -49,10 +59,61 @@ export async function getAccessToken(clientId: string, code: string): Promise<st
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: params
     });
+    const data = await result.json();
+    // Save tokens
+    saveAccessAndRefreshToken(data.access_token, data.refreshToken, data.expires_in);
 
-    const { access_token } = await result.json();
-    return access_token;
+    return data.access_token;
 }
 
+export async function refreshAccessToken(clientId: string): Promise<string> {
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (!refreshToken) throw new Error("No refresh token available");
 
+    const params = new URLSearchParams();
+    params.append("client_id", clientId);
+    params.append("grant_type", "refresh_token");
+    params.append("refresh_token", refreshToken);
+
+    const result = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: params
+    });
+
+    const data = await result.json();
+    saveAccessAndRefreshToken(data.access_token, data.refreshToken, data.expires_in);
+    return data.access_token;
+}
+
+function saveAccessAndRefreshToken(accessToken: string, refreshToken: string, expiresIn: number) {
+    if (accessToken != null) {
+        localStorage.setItem("access_token", accessToken);
+
+        setCookie('spotifyAccessToken', accessToken, 7);
+    }
+    if (refreshToken != null) {
+        localStorage.setItem("refresh_token", refreshToken);
+        setCookie('spotifyRefreshToken', refreshToken, 7);
+        setCookie('spotifyTokenExpiry', (Date.now() + expiresIn * 1000).toString(), 7);
+    }
+}
+
+export function setCookie(name: string, value: string, days: number) {
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
+}
+
+export function getCookie(name: string): string | null {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+        return parts.pop()?.split(";").shift() || null; // always return string or null
+    }
+    return null;
+}
+
+export function deleteCookie(name: string) {
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+}
 
