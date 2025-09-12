@@ -13,14 +13,22 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Fullscreen static background */
 body {
     margin: 0;
     min-height: 100vh;
     display: flex;
-    justify-content: center; /* horizontal centering */
-    align-items: center;     /* vertical centering */
-    background-color: #f4f2f2; /* keep your dark theme */
+    justify-content: center;
+    align-items: center;
+
+    /* Background image settings */
+    background-image: url('../public/background.PNG'); /* replace with your file path */
+    background-size: cover;           /* scale image to cover entire viewport */
+    background-position: center;      /* center the image */
+    background-repeat: no-repeat;     /* prevent tiling */
+    background-attachment: fixed;     /* keep background fixed when scrolling */
 }
+
 
 /* floating profile stays in the top right */
 #profile {
