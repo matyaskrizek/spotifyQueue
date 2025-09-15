@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Redirecting...</title>
+    <meta http-equiv="refresh" content="0; URL=./">
+    <script>
+        // If refresh doesn't work, use JS to redirect to index.html preserving query
+        const query = window.location.search + window.location.hash;
+        window.location.href = "./" + query;
+    </script>
+</head>
+<body>
+Redirecting...
+</body>
+</html>

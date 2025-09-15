@@ -1,3 +1,12 @@
+// authCodeWithPkce.ts
+
+// ----------------- Redirect URI Handling -----------------
+// Automatically pick redirect URI based on environment
+const redirectUri =
+    import.meta.env.MODE === "development"
+        ? "http://127.0.0.1:5173/spotifyQueue/"  // dev localhost
+        : "https://matyaskrizek.github.io/spotifyQueue/"; // production GitHub Pages
+
 export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
     const verifier = generateCodeVerifier(128);
     const challenge = await generateCodeChallenge(verifier);
@@ -16,7 +25,7 @@ export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
     const params = new URLSearchParams();
     params.append("client_id", clientId);
     params.append("response_type", "code");
-    params.append("redirect_uri", "https://matyaskrizek.github.io/spotifyQueue/callback");
+    params.append("redirect_uri", redirectUri); // now uses dynamic URI
     params.append("scope", scope);
     params.append("code_challenge_method", "S256");
     params.append("code_challenge", challenge);
@@ -44,7 +53,6 @@ async function generateCodeChallenge(codeVerifier: string) {
 }
 
 export async function getAccessToken(clientId: string, code: string): Promise<string> {
-
     const verifier = localStorage.getItem("verifier");
     console.log("verifier:", verifier);
 
@@ -52,7 +60,7 @@ export async function getAccessToken(clientId: string, code: string): Promise<st
     params.append("client_id", clientId);
     params.append("grant_type", "authorization_code");
     params.append("code", code);
-    params.append("redirect_uri", "http://127.0.0.1:5173/callback");
+    params.append("redirect_uri", redirectUri); // use the dynamic URI here too
     params.append("code_verifier", verifier!);
 
     const result = await fetch("https://accounts.spotify.com/api/token", {
@@ -62,13 +70,16 @@ export async function getAccessToken(clientId: string, code: string): Promise<st
     });
     const data = await result.json();
     console.log("spotify token response:", data);
-    // Save tokens
+
     saveAccessAndRefreshToken(data.access_token, data.refresh_token, data.expires_in);
-    window.history.replaceState({}, document.title, "/");
+
+    // Remove query parameters from URL after token exchange (clean URL)
+    window.history.replaceState({}, document.title, redirectUri);
 
     return data.access_token;
 }
 
+// refreshAccessToken function remains unchanged
 export async function refreshAccessToken(clientId: string): Promise<string> {
     const refreshToken = localStorage.getItem("refresh_token");
     if (!refreshToken) throw new Error("No refresh token available");
@@ -89,10 +100,10 @@ export async function refreshAccessToken(clientId: string): Promise<string> {
     return data.access_token;
 }
 
+// saveAccessAndRefreshToken remains unchanged
 function saveAccessAndRefreshToken(accessToken: string, refreshToken: string, expiresIn: number) {
     if (accessToken != null) {
         localStorage.setItem("access_token", accessToken);
-
         setCookie('spotifyAccessTokenForMyApp', accessToken, 7);
     }
     if (refreshToken != null) {
@@ -102,6 +113,7 @@ function saveAccessAndRefreshToken(accessToken: string, refreshToken: string, ex
     }
 }
 
+// Cookie helpers (unchanged)
 export function setCookie(name: string, value: string, days: number) {
     const expires = new Date(Date.now() + days * 864e5).toUTCString();
     document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
@@ -111,7 +123,7 @@ export function getCookie(name: string): string | null {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) {
-        return parts.pop()?.split(";").shift() || null; // always return string or null
+        return parts.pop()?.split(";").shift() || null;
     }
     return null;
 }
@@ -119,4 +131,3 @@ export function getCookie(name: string): string | null {
 export function deleteCookie(name: string) {
     document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 }
-
