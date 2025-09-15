@@ -2,7 +2,7 @@ name: Deploy Vite app to GitHub Pages
 
 on:
   push:
-    branches: ["main"]   # or "master", depending on your default branch
+    branches: ["master", "main"]   # or "master", depending on your default branch
 
 permissions:
   contents: read
