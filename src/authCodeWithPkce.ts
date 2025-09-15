@@ -1,5 +1,3 @@
-// authCodeWithPkce.ts
-
 // ----------------- Redirect URI Handling -----------------
 // Automatically pick redirect URI based on environment
 const redirectUri =
@@ -25,7 +23,7 @@ export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
     const params = new URLSearchParams();
     params.append("client_id", clientId);
     params.append("response_type", "code");
-    params.append("redirect_uri", redirectUri); // now uses dynamic URI
+    params.append("redirect_uri", redirectUri);
     params.append("scope", scope);
     params.append("code_challenge_method", "S256");
     params.append("code_challenge", challenge);
@@ -60,7 +58,7 @@ export async function getAccessToken(clientId: string, code: string): Promise<st
     params.append("client_id", clientId);
     params.append("grant_type", "authorization_code");
     params.append("code", code);
-    params.append("redirect_uri", redirectUri); // use the dynamic URI here too
+    params.append("redirect_uri", redirectUri);
     params.append("code_verifier", verifier!);
 
     const result = await fetch("https://accounts.spotify.com/api/token", {
@@ -73,13 +71,11 @@ export async function getAccessToken(clientId: string, code: string): Promise<st
 
     saveAccessAndRefreshToken(data.access_token, data.refresh_token, data.expires_in);
 
-    // Remove query parameters from URL after token exchange (clean URL)
     window.history.replaceState({}, document.title, redirectUri);
 
     return data.access_token;
 }
 
-// refreshAccessToken function remains unchanged
 export async function refreshAccessToken(clientId: string): Promise<string> {
     const refreshToken = localStorage.getItem("refresh_token");
     if (!refreshToken) throw new Error("No refresh token available");
@@ -100,7 +96,6 @@ export async function refreshAccessToken(clientId: string): Promise<string> {
     return data.access_token;
 }
 
-// saveAccessAndRefreshToken remains unchanged
 function saveAccessAndRefreshToken(accessToken: string, refreshToken: string, expiresIn: number) {
     if (accessToken != null) {
         localStorage.setItem("access_token", accessToken);
@@ -113,7 +108,6 @@ function saveAccessAndRefreshToken(accessToken: string, refreshToken: string, ex
     }
 }
 
-// Cookie helpers (unchanged)
 export function setCookie(name: string, value: string, days: number) {
     const expires = new Date(Date.now() + days * 864e5).toUTCString();
     document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
