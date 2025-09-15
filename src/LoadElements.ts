@@ -4,7 +4,7 @@ import {fetchQueue, fetchCurrentlyPlaying} from "./spotifyService.ts"
 let lastTrackId: string | null = null;
 // @ts-ignore
 let queuePollingInterval: number;
-const songMap = await loadSongDanceMap("/LineDanceMasterList.txt");
+const songMap = await loadSongDanceMap(`${import.meta.env.BASE_URL}LineDanceMasterList.txt`);
 
 
 // Poll every 5 seconds (adjust as needed)
@@ -141,19 +141,25 @@ function displayNextThreeSongs(queue: QueueItem[]) {
 
 // Load the Line Dance Map from the text file
 export async function loadSongDanceMap(fileUrl: string): Promise<Map<string, string>> {
-    const response = await fetch(fileUrl);
-    if (!response.ok) throw new Error(`Failed to fetch ${fileUrl}: ${response.statusText}`);
+    try{
+       const response = await fetch(fileUrl);
 
-    const text = await response.text();
-    const map = new Map<string, string>();
+        if (!response.ok) throw new Error(`Failed to fetch ${fileUrl}: ${response.statusText}`);
 
-    text.split("\n").forEach(line => {
-        const trimmed = line.trim();
-        if (!trimmed) return;
+        const text = await response.text();
+        const map = new Map<string, string>();
 
-        const [songName, danceName] = trimmed.split(",");
-        if (songName && danceName) map.set(songName, danceName);
-    });
+        text.split("\n").forEach(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
 
-    return map;
+            const [songName, danceName] = trimmed.split(",");
+            if (songName && danceName) map.set(songName, danceName);
+        });
+
+        return map;
+    } catch (err) {
+        console.error("Error loading LineDanceMasterList", err);
+        return new Map<string, string>()
+    }
 }
