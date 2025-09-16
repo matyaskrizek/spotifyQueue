@@ -79,7 +79,6 @@ body {
     z-index: 1;
 }
 
-
 #bgImage {
     display: none;
 }
@@ -159,3 +158,72 @@ body {
         background-color: #f9f9f9;
     }
 }
+
+/* Base style for both pop-out button and fullscreen button */
+.action-btn {
+    position: fixed;
+    right: 20px;
+    padding: 12px 18px;
+    font-size: 14px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    transition: background 0.3s ease, opacity 0.3s ease, transform 0.2s ease;
+    z-index: 1000;
+}
+
+/* Pop-out button: styled and always visible */
+#openPopoutBtn {
+    position: fixed;
+    bottom: 20px;    /* distance from bottom */
+    right: 20px;     /* distance from right */
+    padding: 14px 22px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #1db954, #1ed760);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+/* Hover/focus effects for pop-out */
+#openPopoutBtn:hover,
+#openPopoutBtn:focus {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+    background: linear-gradient(135deg, #1ed760, #1db954);
+}
+
+/* Active/pressed effect */
+#openPopoutBtn:active {
+    transform: scale(0.98);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+}
+
+
+/* Fullscreen button: initially hidden, appears on hover */
+#fullscreenBtn {
+    bottom: 70px;  /* stacked above pop-out */
+    opacity: 0;
+    pointer-events: none;
+}
+#fullscreenBtn.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Hover effects for fullscreen button */
+#fullscreenBtn:hover {
+    transform: translateY(-1px) scale(1.03);
+    background: rgba(30, 215, 96, 0.9);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+
+
+
