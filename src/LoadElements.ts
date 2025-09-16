@@ -26,7 +26,6 @@ export function populateProfileImage(profile: UserProfile) {
     profileImg!.alt = profile.display_name ?? 'Spotify Profile';
 }
 
-
 export function populateQueue(fullQueue: FullQueue) {
     // Loading current Song Name
 
