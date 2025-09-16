@@ -2,11 +2,26 @@ import "/src/style.css";
 import {redirectToAuthCodeFlow, getAccessToken, refreshAccessToken, getCookie, setCookie, deleteCookie} from "./authCodeWithPkce";
 import {populateProfileImage, populateQueue, startQueuePolling} from "./LoadElements.ts"
 import {fetchQueue, fetchProfile} from "./spotifyService.ts"
+import {
+    openPopout,
+    toggleFullscreen,
+    setupWindowControls,
+    initFullscreenButton
+} from "./pop-outWindow";
 
 
 // TODO make this an env variable
 const clientId = "bdb65f4eee034a86828ae4c9ee70a8e6"; // Make env var
 
+// Call this once when the app starts
+setupWindowControls();
+
+// Hook buttons
+document.getElementById("openPopoutBtn")?.addEventListener("click", openPopout);
+document.getElementById("fullscreenBtn")?.addEventListener("click", toggleFullscreen);
+
+// Disappearing logic on the fullscreen button
+initFullscreenButton("fullscreenBtn");
 
 // ---------------- Main Initialization ----------------
 async function init() {
