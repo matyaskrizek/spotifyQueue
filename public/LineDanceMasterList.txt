@@ -1,6 +1,4 @@
 Man! I Feel Like a Woman,Electric Slide
-Good Time,Good Time
-Church Clap,Church Clap
 Copperhead Road,Copperhead Road
 Cotton Eye Joe,Cotton Eye Joe
 Shivers,Gives Me Shivers
@@ -9,16 +7,11 @@ September,Body Rock
 Uptown Funk,Body Rock
 Fireball,Ah Si
 Bacco Perbacco,Zjozzy's Funk
-Two Step,Two Step
 She's Country,K is for Kicks
 Whiskey Drinkin,The Outlaw
 Crank It Up,Goin' Hamm
 Kerosene,Kerosene
-Mr. Put It Down,Mr. Put It Down
-Boot Scootin' Boogie,Boot Scootin' Boogie
 I Love it,Power Jam
-Drink In My Hand,Drink In My Hand
-House Party,House Party
 Any Man of Mine,Canadian Stomp
 Merry Go Round,Redneck Angel
 Party In The USA,Redneck Angel
