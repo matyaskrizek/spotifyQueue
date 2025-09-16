@@ -1,17 +1,31 @@
-Can't Believe It,Off The Chain
+Man! I Feel Like a Woman,Electric Slide
+Shivers,Gives Me Shivers
+APT,Gives Me Shivers
+Shake It Off,Gives Me Shivers
+September,Body Rock
+Uptown Funk,Body Rock
+Fireball,Ah Si
+Bacco Perbacco,Zjozzy's Funk
+She's Country,K is for Kicks
+Whiskey Drinkin,The Outlaw
+Crank It Up,Goin' Hamm
+I Love it (feat. Charli XCX),Power Jam
+Any Man of Mine,Canadian Stomp
+Merry Go Round,Redneck Angel
+Party In The U.S.A.,Redneck Angel
+MOVE TO MIAMI,Redneck Angel
+Can't Believe It (feat. Pitbull),Off The Chain
 P.Y.T. (Pretty Young Thing),PYT
 Scream,Ooh Baby Baby
 Do-Si-Don'tcha,Ring On Your Wranglers
-Fake ID,Fake I.D.
 Bad Case Of Loving You (Doctor, Doctor),Doctor, Doctor
 Sin Wagon,Lightning Polka
-Levitating,Fly Away With Me
+Levitating (feat. DaBaby),Fly Away With Me
 Dirty Girl,Get Dirty
 Greenlight (feat. Flo Rida & LunchMoney Lewis),T.G.I.F.
-Church,Rude Dude
-High Class,High Class (We High Class!)
+Church (feat. Teddy Verseti),Rude Dude
 U Girl,Cherry Bottom Boom (aka U Gurl)
-Do si do,Do-Si-Do
+Do Si Do (feat. Blanco Brown),Do-Si-Do
 Señorita,Call Me Señorita
 Spicy Margarita,Spicy Margarita (Shot for Shot)
 I Had Some Help (Feat. Morgan Wallen),Help! (I Had Some)
@@ -19,38 +33,18 @@ Whip It,Aces And Eights
 Vibe,The Vibe
 Shake That,Have Fun go Mad
 The Giver,Get The Job Done
-Shivers,Gives Me Shivers
 Country Girl (Shake It For Me),Country Girl Shake
-Drinkin' Problem,Drinking Problem
 Shawty Got Moves,Askin' Questions
 Project,Toxic
-Dicked down in Dallas ,Chasing The D
-50 Ways To Say Goodbye,Walk The Line
+Dicked Down in Dallas,Chasing The D
+50 Ways to Say Goodbye,Walk The Line
 America's Sweetheart,Chomping At The Bit
 1, 2 Many,Half Past Tipsy
-Fireball,Ah Si
-A Bar Song (Tipsy),A Bar Song
-Whiskey Drinkin,The Outlaw
 Honky-Tonk Highway,That Honky Tonk Highway
-Bang Bang,Bang Bang (EZ)
-Drunk (And I Don't wanna Go Home),Don't Wanna Go Home
+Drunk (And I Don't Wanna Go Home),Don't Wanna Go Home
 Next Girl,The Next Girl
-In Da Ghetto,In Da Getto
-Kickin' Up Mud,Mud Stompin'
+Kickin Up Mud,Mud Stompin'
 Dance (Our Own Part),Our Own Party
 Bring Down the House,Dizzy
-Shake Senora,Shake Bob
-Man! I Feel Like a Woman,Electric Slide
-APT,Gives Me Shivers
-September,Body Rock
-Uptown Funk,Body Rock
-Bacco Perbacco,Zjozzy's Funk
-She's Country,K is for Kicks
-Crank It Up,Goin' Hamm
-I Love it,Power Jam
-Any Man of Mine,Canadian Stomp
-Merry Go Round,Redneck Angel
-Party In The USA,Redneck Angel
-MOVE TO MIAMI,Redneck Angel
-Freight Train,Walk The Line
-
+Shake Senora (feat. T-Pain & Sean Paul),Shake Bob
+Caught Up In The Country,Dizzy
