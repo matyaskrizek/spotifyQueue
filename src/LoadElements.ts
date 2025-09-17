@@ -12,7 +12,7 @@ export function startQueuePolling(accessToken: string) {
     refreshQueue(accessToken);  // immediate fetch
     queuePollingInterval = window.setInterval(() => {
         refreshQueue(accessToken);
-    }, 1000);
+    }, 500);
 }
 
 export function populateProfileImage(profile: UserProfile) {
@@ -106,6 +106,9 @@ export async function refreshQueue(accessToken: string) {
 
             const fullQueue = await fetchQueue(accessToken);
             if (!fullQueue) return;
+            if ((window as any).resetDanceTitle) {
+                (window as any).resetDanceTitle();
+            }
             populateQueue(fullQueue);
             displayNextThreeSongs(fullQueue.queue);  // your function to show next 3 songs
         }

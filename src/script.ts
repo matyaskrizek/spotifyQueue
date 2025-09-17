@@ -6,22 +6,14 @@ import {
     openPopout,
     toggleFullscreen,
     setupWindowControls,
-    initFullscreenButton
+    initFullscreenButton, setupPartnerDanceButton
 } from "./pop-outWindow";
 
 
 // TODO make this an env variable
 const clientId = "bdb65f4eee034a86828ae4c9ee70a8e6"; // Make env var
 
-// Call this once when the app starts
-setupWindowControls();
 
-// Hook buttons
-document.getElementById("openPopoutBtn")?.addEventListener("click", openPopout);
-document.getElementById("fullscreenBtn")?.addEventListener("click", toggleFullscreen);
-
-// Disappearing logic on the fullscreen button
-initFullscreenButton("fullscreenBtn");
 
 // ---------------- Main Initialization ----------------
 async function init() {
@@ -100,23 +92,34 @@ async function init() {
                 return; // stop execution; page reloads
             }
         }
-
-        console.log("AccessToken after auth attempts: ", accessToken);
-        console.log("code after all auth attempts: ", code);
-
-        // ---- Valid access token here ----
+        // Setting up all the Button logic and controls
+        setupSiteContentAndButtons();
+        // Getting the user profile and image to display
         const profile = await fetchProfile(accessToken);
         populateProfileImage(profile);
-
+        // Fetching the queue
         const fullQueue = await fetchQueue(accessToken);
         if (fullQueue) populateQueue(fullQueue);
-
+        // Starting the constant queue refresh
         startQueuePolling(accessToken);
 
     } catch (err) {
         console.error("Initialization failed, redirecting:", err);
         await redirectToAuthCodeFlow(clientId);
     }
+}
+
+function setupSiteContentAndButtons() {
+    // Call this once when the app starts
+    setupWindowControls();
+
+    // Hook buttons
+    document.getElementById("openPopoutBtn")?.addEventListener("click", openPopout);
+    document.getElementById("fullscreenBtn")?.addEventListener("click", toggleFullscreen);
+    // Disappearing logic on the fullscreen button
+    initFullscreenButton("fullscreenBtn");
+    // Partner Dance Button Logic
+    setupPartnerDanceButton();
 }
 
 init()
