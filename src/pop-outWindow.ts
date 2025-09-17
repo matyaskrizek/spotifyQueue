@@ -1,14 +1,23 @@
 export function openPopout() {
     const popout = window.open(
-        window.location.href, // exact copy of current page
+        window.location.href,
         "SpotifyQueuePopout",
         "width=1200,height=800,resizable,scrollbars"
     );
 
     if (!popout) {
         alert("Pop-out blocked by browser! Please allow pop-ups.");
+    } else {
+        // store reference globally on the main/original window
+        (window as any).popoutRef = popout;
+
+        // optional: wait until popout loads before syncing content
+        popout.addEventListener("load", () => {
+            console.log("Pop-out loaded, syncing PartnerDance state…");
+        });
     }
 }
+
 
 // Fullscreen toggle
 export function toggleFullscreen() {
@@ -66,3 +75,66 @@ export function initFullscreenButton(buttonId: string = "fullscreenBtn") {
     // Optional: initially hide
     fullscreenBtn.classList.remove("visible");
 }
+
+/* Button to show Partner Dance as Dance Title */
+export function setupPartnerDanceButton() {
+    const partnerDanceBtn = document.getElementById("partnerDanceBtn") as HTMLButtonElement | null;
+    const danceTitle = document.getElementById("danceTitle");
+
+    if (!partnerDanceBtn || !danceTitle) return;
+
+    // Hide button in pop-out
+    console.log("window opener: ", window.opener);
+    if (window.opener) {
+        partnerDanceBtn.style.display = "none";
+        return;
+    }
+
+    let partnerDanceActive = false;
+
+    function updateDanceTitles() {
+        if (partnerDanceActive) {
+            // @ts-ignore
+            danceTitle.textContent = "Partner Dance";
+            // @ts-ignore
+            danceTitle.style.visibility = "visible";
+
+            if ((window as any).popoutRef && !(window as any).popoutRef.closed) {
+                const popDoc = (window as any).popoutRef.document;
+                const popDanceTitle = popDoc.getElementById("danceTitle");
+                if (popDanceTitle) {
+                    popDanceTitle.textContent = "Partner Dance";
+                    popDanceTitle.style.visibility = "visible";
+                }
+            }
+        } else {
+            // @ts-ignore
+            danceTitle.textContent = "";
+            // @ts-ignore
+            danceTitle.style.visibility = "hidden";
+
+            if ((window as any).popoutRef && !(window as any).popoutRef.closed) {
+                const popDoc = (window as any).popoutRef.document;
+                const popDanceTitle = popDoc.getElementById("danceTitle");
+                if (popDanceTitle) {
+                    popDanceTitle.textContent = "";
+                    popDanceTitle.style.visibility = "hidden";
+                }
+            }
+        }
+    }
+
+    partnerDanceBtn.addEventListener("click", () => {
+        partnerDanceActive = !partnerDanceActive;
+        updateDanceTitles();
+    });
+
+    // Expose reset for song change
+    (window as any).resetDanceTitle = () => {
+        partnerDanceActive = false;
+        updateDanceTitles();
+    };
+}
+
+
+
