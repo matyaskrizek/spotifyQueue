@@ -125,6 +125,7 @@ body {
     text-align: center;
 }
 
+
 .songItem img {
     width: 180px;
     height: 180px;
@@ -135,7 +136,8 @@ body {
 }
 
 .songItem span {
-    margin-top: 0.5rem;
+    margin-top: 0.3rem;
+    margin-bottom: 0.5rem;
     font-weight: bold;
     font-size: 1.1rem;
     text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.8);
@@ -224,5 +226,10 @@ body {
     background: rgba(30, 215, 96, 0.9);
 }
 
+#qrCodeContainer {
+    /* Ensure the QR code container takes up space even if no QR code is displayed */
+    min-height: 230px;
+    width: 180px;
+}
 
 

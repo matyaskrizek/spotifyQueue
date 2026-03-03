@@ -3,6 +3,8 @@ import {compressAndStore} from "../fileCompression/fileCompressor.ts";
 
 const BG_IMG_STORAGE_KEY = "customBackgroundImage";
 
+export let partnerDanceActive = false;
+
 export function openPopout() {
     const popout = window.open(
         window.location.href,
@@ -93,6 +95,8 @@ export function setupPartnerDanceButton() {
 
     if (!partnerDanceBtn || !danceTitle) return;
 
+    const qrCodeContainer = document.getElementById("qrCodeContainer");
+
     // Hide button in pop-out
   /*  console.log("window opener: ", window.opener);
     if (window.opener) {
@@ -100,7 +104,6 @@ export function setupPartnerDanceButton() {
         return;
     }*/
 
-    let partnerDanceActive = false;
 
     function updateDanceTitles() {
         //console.log("PARTNER DANCE BUTTON HIT!");
@@ -110,6 +113,10 @@ export function setupPartnerDanceButton() {
             // @ts-ignore
             danceTitle.style.visibility = "visible";
 
+            // hide QR code
+            // @ts-ignore
+            qrCodeContainer.style.visibility = "hidden";
+
             if ((window as any).popoutRef && !(window as any).popoutRef.closed) {
                 const popDoc = (window as any).popoutRef.document;
                 const popDanceTitle = popDoc.getElementById("danceTitle");
@@ -117,12 +124,22 @@ export function setupPartnerDanceButton() {
                     popDanceTitle.textContent = "Partner Dance";
                     popDanceTitle.style.visibility = "visible";
                 }
+
+                const popQrCodeContainer = popDoc.getElementById("qrCodeContainer")
+                popQrCodeContainer.style.visibility = "hidden";
             }
         } else {
             // @ts-ignore
             danceTitle.textContent = "";
             // @ts-ignore
             danceTitle.style.visibility = "hidden";
+
+            // show QR code
+            // @ts-ignore
+            qrCodeContainer.style.visibility = "visible";
+            // clear QR code; it will be re-populated next time the song changes
+            // @ts-ignore
+            qrCodeContainer.innerHTML = "";
 
             if ((window as any).popoutRef && !(window as any).popoutRef.closed) {
                 const popDoc = (window as any).popoutRef.document;
@@ -131,6 +148,11 @@ export function setupPartnerDanceButton() {
                     popDanceTitle.textContent = "";
                     popDanceTitle.style.visibility = "hidden";
                 }
+                const popQrCodeContainer = popDoc.getElementById("qrCodeContainer")
+                // show QR code
+                popQrCodeContainer.style.visibility = "visible";
+                // clear QR code; it will be re-populated next time the song changes
+                popQrCodeContainer.innerHTML = "";
             }
         }
     }

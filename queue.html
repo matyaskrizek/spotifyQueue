@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <title>My Spotify Profile</title>
     <script src="src/script.ts" type="module"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="stylesheet" href="src/css/queue.css">
 
 </head>
@@ -31,7 +32,10 @@
     <h1 id="danceTitle">Dance Title</h1>
 </div>
 
-<div id="upNextColumn"></div>
+<div id="upNextColumn">
+    <div id="songsList"></div>
+    <div id="qrCodeContainer" class="songItem"></div>
+</div>
 
 <!-- Fullscreen Button -->
 <button id="fullscreenBtn" class="action-btn fullscreen-btn">

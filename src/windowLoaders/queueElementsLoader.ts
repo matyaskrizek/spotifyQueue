@@ -1,5 +1,9 @@
 import {fetchQueue, fetchCurrentlyPlaying} from "../services/spotifyService.ts"
 import {loadSongDanceMap} from "../parsers/danceMapLoader.ts";
+import { partnerDanceActive } from "./pop-outWindowLoader.ts";
+
+// we load qrcode.js in HTML using CDN
+declare var QRCode: any; // silence compiler during `npm run build`
 
 
 let lastTrackId: string | null = null;
@@ -8,7 +12,7 @@ let queuePollingInterval: number;
 const songMap = await loadSongDanceMap(`${import.meta.env.BASE_URL}LineDanceMasterList.txt`);
 
 
-// Poll every 5 seconds (adjust as needed)
+// Poll every X seconds (adjust as needed)
 export function startQueuePolling(accessToken: string) {
     refreshQueue(accessToken);  // immediate fetch
     queuePollingInterval = window.setInterval(() => {
@@ -25,6 +29,40 @@ export function populateProfileImage(profile: UserProfile) {
 
     // Optional: keep the URL displayed somewhere (if you still want it)
     profileImg!.alt = profile.display_name ?? 'Spotify Profile';
+}
+
+async function displayTutorialQRCode(danceName: string): Promise<void> {
+    const qrContainer = document.getElementById('qrCodeContainer');
+    if (!qrContainer) return;
+
+
+    try {
+        const url = await getTutorialUrl(danceName);
+        if (!url) {
+          qrContainer.innerHTML = "";
+          return;
+        }
+
+        const qr_code_resolution = 180;
+
+        // Clear previous QR but keep the slot
+        qrContainer.innerHTML = "";
+        new QRCode(qrContainer, {
+            text: url,
+            width: qr_code_resolution,
+            height: qr_code_resolution,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+
+        const nameSpan = document.createElement("span");
+        nameSpan.innerText = "Scan QR code to see video tutorial :)";
+        qrContainer.appendChild(nameSpan);
+        
+    } catch (err) {
+        console.error("Error displaying tutorial URL:", err);
+    }
 }
 
 export function populateQueue(fullQueue: FullQueue) {
@@ -47,7 +85,33 @@ export function populateQueue(fullQueue: FullQueue) {
 
     // Loading the next three songs in the queue
     const nextSongs: QueueItem[] = fullQueue.queue.slice(0, 3);
-    displayNextThreeSongs(nextSongs);
+    displayNextSongs(nextSongs, 3);
+    // if this is a partner dance: no line dance tutorial QR code to be shown
+    if (!partnerDanceActive){
+      displayTutorialQRCode(fullQueue.currently_playing.name);
+    }
+}
+
+/*
+ * Returns tutorial URL if found; else null
+ */
+async function getTutorialUrl(song_name: string){
+    const DISTANCE_THRESHOLD = 0.3;
+    const API_HOST = 'loic.lescoat.me';
+    try {
+        const response = await fetch(`https://${API_HOST}/linedance_database/tutorial_url?song_name=${encodeURIComponent(song_name)}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const x = await response.json();
+        if (x.distance >= DISTANCE_THRESHOLD){
+          throw new Error(`Distance of ${x.distance} exceeds threshold of ${DISTANCE_THRESHOLD}; assuming song name "${song_name}" has no matches; closest match is "${x.best_match}"`);
+        }
+        return x.tutorial_url;
+    } catch (error) {
+        console.error("Error fetching tutorial URL:", error);
+    }
+    return null;
 }
 
 function loadCurrentlyPlayingAlbumCover(backgroundUrl: string | null) {
@@ -104,26 +168,27 @@ export async function refreshQueue(accessToken: string) {
             lastTrackId = currentTrackId;
 
             const fullQueue = await fetchQueue(accessToken);
+
             if (!fullQueue) return;
             if ((window as any).resetDanceTitle) {
                 (window as any).resetDanceTitle();
             }
             populateQueue(fullQueue);
-            displayNextThreeSongs(fullQueue.queue);  // your function to show next 3 songs
+            displayNextSongs(fullQueue.queue, 3);  // your function to show next 3 songs
         }
     } catch (err) {
         console.error("Failed to refresh queue:", err);
     }
 }
 
-function displayNextThreeSongs(queue: QueueItem[]) {
-    const container = document.getElementById("upNextColumn");
+function displayNextSongs(queue: QueueItem[], n_songs: number) {
+    const container = document.getElementById("songsList");
     if (!container) return;
 
-    container.innerHTML = ""; // clear previous content
+    container.innerHTML = "";  // clear previous content
 
-    // take next 3 songs
-    queue.slice(0, 3).forEach(item => {
+    // take next n_songs songs
+    queue.slice(0, n_songs).forEach(item => {
         const div = document.createElement("div");
         div.className = "songItem";
 
