@@ -11,6 +11,7 @@ let lastTrackId: string | null = null;
 let queuePollingInterval: number;
 const songMap = await loadSongDanceMap(`${import.meta.env.BASE_URL}LineDanceMasterList.txt`);
 let currAccessToken: string;
+const defaultPollingRate = 5000;
 
 // Poll every X seconds Based on the remaining time left in the current song
 export function startQueuePolling(accessToken: string) {
@@ -173,7 +174,7 @@ function loadCurrentlyPlayingAlbumCover(backgroundUrl: string | null) {
 export async function refreshQueue(accessToken: string): Promise<number> {
     try {
         const currentlyPlaying = await fetchCurrentlyPlaying(accessToken);
-        if (!currentlyPlaying) return 1000;
+        if (!currentlyPlaying) return defaultPollingRate;
 
         const currentTrackId = await currentlyPlaying.item.id;
 
@@ -184,7 +185,7 @@ export async function refreshQueue(accessToken: string): Promise<number> {
 
             const fullQueue = await fetchQueue(accessToken);
 
-            if (!fullQueue) return 1000;
+            if (!fullQueue) return defaultPollingRate;
             if ((window as any).resetDanceTitle) {
                 (window as any).resetDanceTitle();
             }
@@ -196,7 +197,7 @@ export async function refreshQueue(accessToken: string): Promise<number> {
 
         }
         // Default polling for next song is 5 seconds
-        return Math.max(currentlyPlaying.item.duration_ms - currentlyPlaying.progress_ms, 500)
+        return Math.max(currentlyPlaying.item.duration_ms - currentlyPlaying.progress_ms, defaultPollingRate)
     } catch (err) {
         console.error("Failed to refresh queue:", err);
     }
