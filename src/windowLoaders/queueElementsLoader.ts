@@ -10,14 +10,27 @@ let lastTrackId: string | null = null;
 // @ts-ignore
 let queuePollingInterval: number;
 const songMap = await loadSongDanceMap(`${import.meta.env.BASE_URL}LineDanceMasterList.txt`);
+let currAccessToken: string;
 
-
-// Poll every X seconds (adjust as needed)
+// Poll every X seconds Based on the remaining time left in the current song
 export function startQueuePolling(accessToken: string) {
-    refreshQueue(accessToken);  // immediate fetch
-    queuePollingInterval = window.setInterval(() => {
-        refreshQueue(accessToken);
-    }, 500);
+    if(accessToken != null && accessToken != "") {
+        currAccessToken = accessToken
+    } else {
+        accessToken = currAccessToken;
+    }
+    const poll = async () => {
+        let currTimeout = await refreshQueue(accessToken);
+        console.log("polling with wait: ", currTimeout);
+        queuePollingInterval = window.setTimeout(poll, currTimeout);
+    };
+
+    poll();
+}
+
+export function resetTimeout(){
+    clearTimeout(queuePollingInterval);
+    startQueuePolling(currAccessToken)
 }
 
 export function populateProfileImage(profile: UserProfile) {
@@ -156,26 +169,34 @@ function loadCurrentlyPlayingAlbumCover(backgroundUrl: string | null) {
 }
 
 
-export async function refreshQueue(accessToken: string) {
+// @ts-ignore
+export async function refreshQueue(accessToken: string): Promise<number> {
     try {
         const currentlyPlaying = await fetchCurrentlyPlaying(accessToken);
-        if (!currentlyPlaying) return;
+        if (!currentlyPlaying) return 1000;
 
         const currentTrackId = await currentlyPlaying.item.id;
 
         // Only update queue if the track changed
         if (currentTrackId !== lastTrackId) {
+
             lastTrackId = currentTrackId;
 
             const fullQueue = await fetchQueue(accessToken);
 
-            if (!fullQueue) return;
+            if (!fullQueue) return 1000;
             if ((window as any).resetDanceTitle) {
                 (window as any).resetDanceTitle();
             }
             populateQueue(fullQueue);
-            displayNextSongs(fullQueue.queue, 3);  // your function to show next 3 songs
+            // your function to show next 3 songs
+            displayNextSongs(fullQueue.queue, 3);
+            // Calculating the offset when to poll for the next song.
+            console.log("Time left in the song: ", currentlyPlaying.item.duration_ms - currentlyPlaying.progress_ms)
+
         }
+        // Default polling for next song is 5 seconds
+        return Math.max(currentlyPlaying.item.duration_ms - currentlyPlaying.progress_ms, 500)
     } catch (err) {
         console.error("Failed to refresh queue:", err);
     }

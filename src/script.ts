@@ -6,23 +6,21 @@ import {
     openPopout,
     toggleFullscreen,
     setupWindowControls,
-    initFullscreenButton, setupPartnerDanceButton, setupBackgroundUploadButton, setupBackground, initHideQueueButton
+    initFullscreenButton, setupPartnerDanceButton, setupBackgroundUploadButton, setupBackground, initHideQueueButton,
+    initRefreshButton
 } from "./windowLoaders/pop-outWindowLoader.ts";
 
 
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
 const currentlyPlayingSection = document.querySelector(".currentlyPlaying") as HTMLElement;
-console.log("Running the script from the start");
 
 // ---------------- Main Initialization ----------------
 async function init() {
-    console.log("Running INIT()");
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code") || null;
     const maxRetries = 3;
     let accessToken: string | null = null;
     let refreshToken: string | null = null;
-    console.log("CODE: " + code);
     if (code) {
         try {
             console.log("Exchanging code for new access token...");
@@ -48,18 +46,15 @@ async function init() {
     if(refreshToken == "undefined"){
         refreshToken = null;
     }
-    console.log("accessToken: " + accessToken);
-    console.log("refreshToken: " + refreshToken);
 
     try {
         // Only retry locally if token missing or expired, up to maxRetries
-        console.log("in THE try");
         if (!accessToken || Date.now() > tokenExpiry) {
 
             console.log("NO ACCESS TOKEN OR EXPIRED TOKEN");
             if (refreshToken && retries < maxRetries) {
 
-                console.log("Trying refresh");
+                console.log("Trying to refresh token");
                 try {
                     accessToken = await refreshAccessToken(clientId);
                     setCookie("spotifyAccessToken", accessToken, 1); // persist new access token
@@ -77,7 +72,7 @@ async function init() {
 
             // Try authorization code flow if refresh token fails
             if (!accessToken && code) {
-                console.log("Trying to get token");
+                console.log("Trying to get new token");
                 try {
                     accessToken = await getUserAccessToken(clientId, code);
                     setCookie("spotifyAccessToken", accessToken, 1);
@@ -92,7 +87,7 @@ async function init() {
             }
             // If still no token after retries → single redirect
             if(!accessToken) {
-                console.log("still no access token");
+                console.log("Redirecting to Spotify");
                 currentlyPlayingSection.style.display = "none";
                 await redirectToAuthCodeFlow(clientId);
                 return;
@@ -121,7 +116,6 @@ function setupSiteContentAndButtons() {
     // Call this once when the app starts
     setupWindowControls();
     if(!window.opener) {
-        console.log("setting background upload button")
         // Upload Background image logic
         setupBackgroundUploadButton();
 
@@ -135,6 +129,8 @@ function setupSiteContentAndButtons() {
     setupPartnerDanceButton();
     // Hide Queue logic
     initHideQueueButton();
+    // Setup refresh Button
+    initRefreshButton();
 }
 
 async function pollQueueLoop(accessToken:string){

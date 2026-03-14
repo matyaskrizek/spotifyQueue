@@ -1,12 +1,13 @@
 import {compressAndStore} from "../fileCompression/fileCompressor.ts";
+import {resetTimeout} from "./queueElementsLoader.ts";
 
 
 const BG_IMG_STORAGE_KEY = "customBackgroundImage";
-
+let popout: Window | null;
 export let partnerDanceActive = false;
 
 export function openPopout() {
-    const popout = window.open(
+    popout = window.open(
         window.location.href,
         "SpotifyQueuePopout",
         "width=1200,height=800,resizable,scrollbars"
@@ -45,6 +46,7 @@ export function setupWindowControls() {
         (document.getElementById("uploadBgBtn") as HTMLElement)?.style.setProperty("display", "none");
         (document.getElementById("partnerDanceBtn") as HTMLElement)?.style.setProperty("display", "none");
         (document.getElementById("hideQueueBtn") as HTMLElement)?.style.setProperty("display", "none");
+        (document.getElementById("togglePollingBtn") as HTMLElement)?.style.setProperty("display", "none");
 
     } else {
         // In main/original
@@ -106,7 +108,6 @@ export function setupPartnerDanceButton() {
 
 
     function updateDanceTitles() {
-        //console.log("PARTNER DANCE BUTTON HIT!");
         if (partnerDanceActive) {
             // @ts-ignore
             danceTitle.textContent = "Partner Dance";
@@ -191,7 +192,6 @@ export function setupBackgroundUploadButton() {
     const uploadBgBtn = document.getElementById("uploadBgBtn")!;
     const bgUploadInput = document.getElementById("bgUploadInput")!;
     const bgImage = document.getElementById("bgImage") as HTMLImageElement;
-    console.log("setting up background");
 
     // Handle background uploads
     uploadBgBtn.addEventListener("click", () => bgUploadInput.click());
@@ -245,21 +245,30 @@ export function initHideQueueButton(buttonId: string = "hideQueueBtn") {
     });
 }
 
+export function initRefreshButton() {
+    const refreshButton = document.getElementById("togglePollingBtn");
+    refreshButton?.addEventListener("click", () => {
+        localStorage.setItem("refreshCurrPlaying", Date.now().toString());
+        resetTimeout();
+    })
 
-
+}
 
 // Event listener to make sure all updates to one window happen to others
-window.addEventListener("storage", (event) => {
-    if (event.key === BG_IMG_STORAGE_KEY && event.newValue) {
-        applyBackground(event.newValue);
-    }
-});
 
 window.addEventListener("storage", (event) => {
+
     if (event.key === "upNextHidden") {
         const upNextQueue = document.getElementById("upNextColumn");
         if (!upNextQueue) return;
         upNextQueue.style.visibility = event.newValue === "true" ? "hidden" : "visible";
+    }
+    if (event.key === BG_IMG_STORAGE_KEY && event.newValue) {
+        applyBackground(event.newValue);
+    }
+
+    if (event.key === "refreshCurrPlaying") {
+        resetTimeout();
     }
 });
 

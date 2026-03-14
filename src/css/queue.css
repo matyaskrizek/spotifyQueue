@@ -205,6 +205,16 @@ body {
     transform: scale(1.05);
 }
 
+#togglePollingBtn {
+    background: linear-gradient(135deg, #6a5af9, #8e8fff);
+}
+
+#togglePollingBtn:hover {
+    background: linear-gradient(135deg, #8e8fff, #6a5af9);
+    transform: scale(1.05);
+}
+
+
 
 /* Fullscreen button */
 #fullscreenBtn {
