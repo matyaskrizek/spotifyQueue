@@ -2,7 +2,7 @@ House Tour,Flatliner
 Starships,Rodeo
 "BEAT UP CHANEL$",Lightning Polka
 "Oops!...I did it again",6s to 9s 
-We R Who We Are,Country Girl Shake
+"We R Who We R",Country Girl Shake
 Born This Way,Mr. Put it Down
 Blow,Off the Chain
 Red Wine Supernova,Pieces to the Puzzle
@@ -10,7 +10,7 @@ Red Wine Supernova,Pieces to the Puzzle
 Your Love Is My Drug,Honkyonk Way
 CRANK,Country Girl Stomp
 Womanizer,Countdown 
-Naked in Manhattan ,Cowboy cha cha
+Naked in Manhattan,Cowboy cha cha
 Circus,Kerosene
 Party in The USA,Redneck Angel 
 Coconuts,Shes a Natural
@@ -26,7 +26,7 @@ Bad Girls,Gives Me Shivers
 212,In Da Ghetto
 Rain on Me (with Ariana Grande),Ooh Baby Baby
 Lush Life,The Vibe
-Tempo (feat. Missy Elliot),Saddle Up Shawty
+Tempo (feat. Missy Elliott),Saddle Up Shawty
 Boyfriend,Partner Dance
 Blondes,Partner Dance
 Say So,Partner Dance
