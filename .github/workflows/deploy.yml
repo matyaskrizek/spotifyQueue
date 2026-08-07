@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VITE_SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+      VITE_WALLS_DANCE_API_KEY: ${{ secrets.WALLS_DANCE_API_KEY }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4

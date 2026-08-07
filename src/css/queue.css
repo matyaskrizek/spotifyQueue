@@ -5,12 +5,19 @@
     background-color: #242424;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+
+    /* 3 song tiles + QR + labels must fit in the viewport height */
+    --tile-size: clamp(72px, calc((100vh - 9rem) / 4), 180px);
+    --tile-size: clamp(72px, calc((100dvh - 9rem) / 4), 180px);
+    --sidebar-width: calc(var(--tile-size) + 2.5rem);
+    --song-label-size: clamp(0.7rem, 1.8vh, 1.1rem);
 }
 
 /* ---------- Global Layout ---------- */
 body {
     margin: 0;
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -93,7 +100,7 @@ body {
 
 /* ---------- Titles ---------- */
 #songTitle, #danceTitle {
-    font-size: 3.5rem;
+    font-size: clamp(1.5rem, 5vh, 3.5rem);
     text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
     margin: 0.25rem 0;
 }
@@ -109,13 +116,29 @@ body {
     top: 0;
     left: 0;
     bottom: 0;
-    width: 220px;
+    width: var(--sidebar-width);
+    max-height: 100vh;
+    max-height: 100dvh;
     display: flex;
     flex-direction: column;
     justify-content: space-evenly;
     align-items: center;
+    padding: 0.4rem 0;
+    box-sizing: border-box;
+    overflow: hidden;
     background: transparent;
     z-index: 2;
+}
+
+#songsList {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: center;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
 }
 
 .songItem {
@@ -123,23 +146,42 @@ body {
     flex-direction: column;
     align-items: center;
     text-align: center;
+    flex: 0 1 auto;
+    min-height: 0;
+    max-width: 100%;
 }
 
 
-.songItem img {
-    width: 180px;
-    height: 180px;
+.songItem img,
+#qrCodeContainer canvas,
+#qrCodeContainer > img {
+    width: var(--tile-size);
+    height: var(--tile-size);
+    max-width: 100%;
     border-radius: 10px;
     object-fit: cover;
     border: 2px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
 }
 
+#qrCodeContainer canvas,
+#qrCodeContainer > img {
+    object-fit: contain;
+    background: #fff;
+}
+
 .songItem span {
-    margin-top: 0.3rem;
-    margin-bottom: 0.5rem;
+    margin-top: 0.25rem;
+    margin-bottom: 0.35rem;
     font-weight: bold;
-    font-size: 1.1rem;
+    font-size: var(--song-label-size);
+    line-height: 1.2;
+    max-width: 100%;
+    padding: 0 0.35rem;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.8);
 }
 
@@ -237,9 +279,9 @@ body {
 }
 
 #qrCodeContainer {
-    /* Ensure the QR code container takes up space even if no QR code is displayed */
-    min-height: 230px;
-    width: 180px;
+    flex: 0 0 auto;
+    width: var(--tile-size);
+    min-height: 0;
 }
 
 

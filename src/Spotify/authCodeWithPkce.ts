@@ -1,11 +1,17 @@
+// Must match Spotify Dashboard Redirect URIs exactly (localhost ≠ 127.0.0.1).
 const redirectUri =
     import.meta.env.MODE === "development"
-        ? "http://127.0.0.1:5173/spotifyQueue/queue.html"  // dev localhost
-        : "https://matyaskrizek.github.io/spotifyQueue/queue.html"; // production GitHub Pages
+        ? "http://127.0.0.1:5173/spotifyQueue/queue.html"
+        : "https://matyaskrizek.github.io/spotifyQueue/queue.html";
+
+function getRedirectUri(): string {
+    return redirectUri;
+}
 
 export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
     const verifier = generateCodeVerifier(128);
     const challenge = await generateCodeChallenge(verifier);
+    const redirectUri = getRedirectUri();
 
     // Add queue-related scopes
     const scope = [
@@ -52,6 +58,7 @@ async function generateCodeChallenge(codeVerifier: string) {
 
 export async function getUserAccessToken(clientId: string, code: string): Promise<string> {
     const verifier = localStorage.getItem("verifier");
+    const redirectUri = getRedirectUri();
 
     const params = new URLSearchParams();
     params.append("client_id", clientId);

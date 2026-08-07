@@ -57,7 +57,11 @@ async function displayTutorialQRCode(danceName: string): Promise<void> {
           return;
         }
 
-        const qr_code_resolution = 180;
+        // Match CSS --tile-size so QR scales with short / odd viewports (e.g. TVs)
+        const tileSizePx = parseFloat(getComputedStyle(qrContainer).width);
+        const qr_code_resolution = Number.isFinite(tileSizePx) && tileSizePx > 0
+            ? Math.max(72, Math.round(tileSizePx))
+            : 180;
 
         // Clear previous QR but keep the slot
         qrContainer.innerHTML = "";
@@ -76,6 +80,76 @@ async function displayTutorialQRCode(danceName: string): Promise<void> {
         
     } catch (err) {
         console.error("Error displaying tutorial URL:", err);
+    }
+}
+
+function getArtistName(item: QueueItem): string {
+    if ("artists" in item && item.artists?.length) {
+        return item.artists.map((a) => a.name).join(", ");
+    }
+    return "";
+}
+
+async function logSongToWalls(song: string, artist: string, dance?: string): Promise<void> {
+    const apiKey = import.meta.env.VITE_WALLS_DANCE_API_KEY;
+    if (!apiKey) {
+        console.warn("VITE_WALLS_DANCE_API_KEY not set; skipping walls.dance log");
+        return;
+    }
+
+    const body: { song: string; artist: string; bar: string; dance?: string } = {
+        song,
+        artist,
+        bar: import.meta.env.VITE_WALLS_BAR || "test-bar",
+    };
+    if (dance) {
+        body.dance = dance;
+    }
+
+    // In dev, proxy via Vite so the browser sees a same-origin request (avoids CORS).
+    const url = import.meta.env.DEV
+        ? "/walls-api/api/v1/log"
+        : "https://walls.dance/api/v1/log";
+    console.log("[walls.dance] POST", url, {
+        body,
+        apiKeyPresent: Boolean(apiKey),
+        apiKeySuffix: apiKey.slice(-6),
+    });
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-api-key": apiKey,
+            },
+            body: JSON.stringify(body),
+        });
+        const responseText = await response.text();
+        let responseJson: unknown = null;
+        try {
+            responseJson = responseText ? JSON.parse(responseText) : null;
+        } catch {
+            // non-JSON body
+        }
+
+        console.log("[walls.dance] response", {
+            ok: response.ok,
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries()),
+            body: responseJson ?? responseText,
+        });
+
+        if (!response.ok) {
+            console.error(
+                "Failed to log song to walls.dance:",
+                response.status,
+                responseJson ?? responseText
+            );
+        }
+    } catch (err) {
+        console.error("Error logging song to walls.dance:", err);
     }
 }
 
@@ -104,6 +178,12 @@ export function populateQueue(fullQueue: FullQueue) {
     if (!partnerDanceActive){
       displayTutorialQRCode(fullQueue.currently_playing.name);
     }
+
+    void logSongToWalls(
+        fullQueue.currently_playing.name,
+        getArtistName(fullQueue.currently_playing),
+        danceName
+    );
 }
 
 /*

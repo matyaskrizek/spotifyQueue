@@ -12,7 +12,18 @@ export default defineConfig({
         }
     },
     server: {
+        host: "127.0.0.1", // match Spotify redirect URI (localhost ≠ 127.0.0.1)
         open: true,
         port: 5173,
+        strictPort: true, // fail if 5173 is taken instead of picking another port
+        // Avoid browser CORS by proxying walls.dance through the Vite origin
+        proxy: {
+            "/walls-api": {
+                target: "https://walls.dance",
+                changeOrigin: true,
+                secure: true,
+                rewrite: (path) => path.replace(/^\/walls-api/, ""),
+            },
+        },
     }
 });

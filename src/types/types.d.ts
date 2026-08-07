@@ -30,6 +30,7 @@ interface FullQueue {
 interface TrackObject {
     id: string;
     name: string;
+    artists: { name: string }[];
     album: {
         images: Image[];
         name: string;
