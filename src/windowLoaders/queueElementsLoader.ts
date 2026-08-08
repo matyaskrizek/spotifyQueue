@@ -13,6 +13,87 @@ const songMap = await loadSongDanceMap(`${import.meta.env.BASE_URL}LineDanceMast
 let currAccessToken: string;
 const defaultPollingRate = 5000;
 
+const MANUAL_DANCE_KEY = "manualDanceOverride";
+
+type ManualDanceOverride = { trackId: string; danceName: string };
+
+let currentTrack: { id: string; name: string; artist: string } | null = null;
+/** User-entered dance for the current track; wins over walls / local map. */
+let manualDanceName: string | null = null;
+
+function readManualDance(): ManualDanceOverride | null {
+    try {
+        const raw = localStorage.getItem(MANUAL_DANCE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as ManualDanceOverride;
+        if (parsed?.trackId && parsed?.danceName) return parsed;
+    } catch {
+        // ignore corrupt storage
+    }
+    return null;
+}
+
+function writeManualDance(override: ManualDanceOverride): void {
+    localStorage.setItem(MANUAL_DANCE_KEY, JSON.stringify(override));
+}
+
+function clearManualDanceStorage(): void {
+    localStorage.removeItem(MANUAL_DANCE_KEY);
+}
+
+function setDanceTitleDisplay(danceName: string | undefined | null): void {
+    const danceTitleElmnt = document.getElementById("danceTitle");
+    if (!danceTitleElmnt) return;
+
+    if (danceName) {
+        danceTitleElmnt.innerText = danceName;
+        danceTitleElmnt.style.visibility = "visible";
+    } else {
+        danceTitleElmnt.innerText = "";
+        danceTitleElmnt.style.visibility = "hidden";
+    }
+
+    // Keep the pop-out in sync when this window owns the override.
+    if ((window as any).popoutRef && !(window as any).popoutRef.closed) {
+        const popDanceTitle = (window as any).popoutRef.document.getElementById("danceTitle");
+        if (popDanceTitle) {
+            if (danceName) {
+                popDanceTitle.innerText = danceName;
+                popDanceTitle.style.visibility = "visible";
+            } else {
+                popDanceTitle.innerText = "";
+                popDanceTitle.style.visibility = "hidden";
+            }
+        }
+    }
+}
+
+/** Apply a user-entered dance name for the currently playing song and log it. */
+export function submitManualDanceName(danceName: string): boolean {
+    const trimmed = danceName.trim();
+    if (!trimmed) return false;
+    if (!currentTrack) {
+        console.warn("No current track; cannot set dance name");
+        return false;
+    }
+
+    manualDanceName = trimmed;
+    writeManualDance({ trackId: currentTrack.id, danceName: trimmed });
+    setDanceTitleDisplay(trimmed);
+    void logSongToWalls(currentTrack.name, currentTrack.artist, trimmed);
+    return true;
+}
+
+/** Sync dance title when another window sets a manual override. */
+export function applyManualDanceFromStorage(): void {
+    if (!currentTrack) return;
+    const stored = readManualDance();
+    if (stored?.trackId === currentTrack.id) {
+        manualDanceName = stored.danceName;
+        setDanceTitleDisplay(stored.danceName);
+    }
+}
+
 // Poll every X seconds Based on the remaining time left in the current song
 export function startQueuePolling(accessToken: string) {
     if(accessToken != null && accessToken != "") {
@@ -98,13 +179,12 @@ function wallsApiUrl(path: string): string {
 }
 
 type WallsDanceLookup =
-    | { ok: true; danceName: string | null } // HTTP 200; play already logged by API
-    | { ok: false }; // network / non-2xx / missing key — fall back to map + legacy log
+    | { ok: true; danceName: string | null } // HTTP 200
+    | { ok: false }; // network / non-2xx / missing key — fall back to map
 
 /**
- * Look up a dance for the given song via walls.dance.
- * On HTTP 200, `danceName` is the matched display name or null when unmatched.
- * A successful response also logs a play when `bar` is provided.
+ * Look up a dance for the given song via walls.dance (no `bar`, so this does not
+ * log a play — plays are always recorded via POST /log with the resolved dance).
  */
 async function fetchDanceFromWalls(song: string): Promise<WallsDanceLookup> {
     const apiKey = import.meta.env.VITE_WALLS_DANCE_API_KEY;
@@ -113,8 +193,7 @@ async function fetchDanceFromWalls(song: string): Promise<WallsDanceLookup> {
         return { ok: false };
     }
 
-    const bar = import.meta.env.VITE_WALLS_BAR || "test-bar";
-    const params = new URLSearchParams({ q: song, bar });
+    const params = new URLSearchParams({ q: song });
     const url = wallsApiUrl(`/api/v1/songs?${params}`);
 
     console.log("[walls.dance] GET", url, {
@@ -214,26 +293,46 @@ async function logSongToWalls(song: string, artist: string, dance?: string): Pro
 export async function populateQueue(fullQueue: FullQueue) {
     // Loading current Song Name
 
-    document.getElementById("songTitle")!.innerText = fullQueue.currently_playing.name;
-    const songName = fullQueue.currently_playing.name;
-    const wallsLookup = await fetchDanceFromWalls(songName);
-    // Prefer walls.dance match; on error or null match, fall back to the built-in map.
-    const danceName =
-        wallsLookup.ok && wallsLookup.danceName
-            ? wallsLookup.danceName
-            : songMap.get(songName);
-    const danceTitleElmnt = document.getElementById("danceTitle");
-    if (danceTitleElmnt) {
-        if (danceName) {
-            danceTitleElmnt.innerText = danceName;
-            danceTitleElmnt.style.visibility = "visible";  // show the element
-        } else {
-            danceTitleElmnt.innerText = "";
-            danceTitleElmnt.style.visibility = "hidden";   // hide the element
+    const playing = fullQueue.currently_playing;
+    const songName = playing.name;
+    const trackId = playing.id;
+    const artistName = getArtistName(playing);
+
+    document.getElementById("songTitle")!.innerText = songName;
+
+    // Reset manual override when the track changes.
+    if (currentTrack?.id !== trackId) {
+        manualDanceName = null;
+        const stored = readManualDance();
+        if (stored && stored.trackId !== trackId) {
+            clearManualDanceStorage();
         }
     }
+    currentTrack = { id: trackId, name: songName, artist: artistName };
+
+    const storedOverride = readManualDance();
+    if (storedOverride?.trackId === trackId) {
+        manualDanceName = storedOverride.danceName;
+    }
+
+    let danceName: string | undefined = manualDanceName ?? undefined;
+
+    // Skip auto-lookup when the user already named this track's dance.
+    if (!manualDanceName) {
+        const wallsLookup = await fetchDanceFromWalls(songName);
+        // Prefer walls.dance match; on error or null match, fall back to the built-in map.
+        danceName =
+            wallsLookup.ok && wallsLookup.danceName
+                ? wallsLookup.danceName
+                : songMap.get(songName);
+    }
+
+    if (!partnerDanceActive) {
+        setDanceTitleDisplay(danceName);
+    }
+
     // Updating the current song album cover
-    loadCurrentlyPlayingAlbumCover((fullQueue.currently_playing as unknown as TrackObject).album?.images[0]?.url ?? (fullQueue.currently_playing as unknown as EpisodeObject).images[0]?.url ?? '');
+    loadCurrentlyPlayingAlbumCover((playing as unknown as TrackObject).album?.images[0]?.url ?? (playing as unknown as EpisodeObject).images[0]?.url ?? '');
 
     // Loading the next three songs in the queue
     const nextSongs: QueueItem[] = fullQueue.queue.slice(0, 3);
@@ -243,14 +342,8 @@ export async function populateQueue(fullQueue: FullQueue) {
       displayTutorialQRCode(songName);
     }
 
-    // GET /songs already logs on HTTP 200; only use POST /log when the lookup failed.
-    if (!wallsLookup.ok) {
-        void logSongToWalls(
-            songName,
-            getArtistName(fullQueue.currently_playing),
-            danceName
-        );
-    }
+    // Always log the play; include dance when resolved (API, local map, or Set Dance).
+    void logSongToWalls(songName, artistName, danceName);
 }
 
 /*
@@ -275,45 +368,13 @@ async function getTutorialUrl(song_name: string){
     return null;
 }
 
-function loadCurrentlyPlayingAlbumCover(backgroundUrl: string | null) {
-    const video = document.getElementById("bgVideo") as HTMLVideoElement;
-    const image = document.getElementById("albumArt") as HTMLImageElement;
-
-    if (!video || !image || !backgroundUrl) return;
-
-    // Reset
-    video.style.display = "none";
-    image.style.display = "none";
-    video.src = "";
-    image.src = "";
-
-    // Determine if URL is a video
-    const isVideo = backgroundUrl.match(/\.(mp4|webm|ogg)$/i);
-
-    if (isVideo) {
-        video.src = backgroundUrl;
-        video.autoplay = true;
-        video.loop = true;
-        video.muted = true;
-        video.style.display = "block";
-        video.style.objectFit = "cover";     // video fills screen
-        video.style.objectPosition = "center";
-
-        // fallback to image if video fails
-        video.addEventListener("error", () => {
-            video.style.display = "none";
-            image.src = backgroundUrl;
-            image.style.display = "block";
-            image.style.objectFit = "contain";   // image centered
-            image.style.objectPosition = "center";
-        });
-    } else {
-        // Treat as image
-        image.src = backgroundUrl;
-        image.style.display = "block";
-        image.style.objectFit = "contain";       // image centered
-        image.style.objectPosition = "center";
-    }
+function loadCurrentlyPlayingAlbumCover(coverUrl: string | null) {
+    const image = document.getElementById("albumArt") as HTMLImageElement | null;
+    if (!image || !coverUrl) return;
+    image.src = coverUrl;
+    image.style.display = "block";
+    image.style.objectFit = "contain";
+    image.style.objectPosition = "center";
 }
 
 

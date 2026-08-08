@@ -1,8 +1,11 @@
-import {compressAndStore} from "../fileCompression/fileCompressor.ts";
-import {resetTimeout} from "./queueElementsLoader.ts";
+import {
+    applyManualDanceFromStorage,
+    resetTimeout,
+    submitManualDanceName,
+} from "./queueElementsLoader.ts";
+import { renderActiveBackground } from "../backgroundEditor/sceneRenderer.ts";
+import { ACTIVE_PROJECT_ID_KEY, ACTIVE_PROJECT_REV_KEY } from "../types/backgroundProject.ts";
 
-
-const BG_IMG_STORAGE_KEY = "customBackgroundImage";
 let popout: Window | null;
 export let partnerDanceActive = false;
 
@@ -40,16 +43,19 @@ export function toggleFullscreen() {
 export function setupWindowControls() {
     if (window.opener) {
         // In pop-out
+        document.body.classList.add("is-popout");
         (document.getElementById("openPopoutBtn") as HTMLButtonElement)?.style.setProperty("display", "none");
         (document.getElementById("fullscreenBtn") as HTMLButtonElement)?.style.setProperty("display", "inline-block");
-        (document.getElementById("profile") as HTMLElement)?.style.setProperty("display", "none");
-        (document.getElementById("uploadBgBtn") as HTMLElement)?.style.setProperty("display", "none");
         (document.getElementById("partnerDanceBtn") as HTMLElement)?.style.setProperty("display", "none");
         (document.getElementById("hideQueueBtn") as HTMLElement)?.style.setProperty("display", "none");
         (document.getElementById("togglePollingBtn") as HTMLElement)?.style.setProperty("display", "none");
+        (document.getElementById("setDanceBtn") as HTMLElement)?.style.setProperty("display", "none");
+        (document.getElementById("setDanceForm") as HTMLElement)?.style.setProperty("display", "none");
+        (document.getElementById("bgEditorOverlay") as HTMLElement)?.setAttribute("hidden", "");
 
     } else {
         // In main/original
+        document.body.classList.remove("is-popout");
         (document.getElementById("openPopoutBtn") as HTMLButtonElement)?.style.setProperty("display", "inline-block");
         (document.getElementById("fullscreenBtn") as HTMLButtonElement)?.style.setProperty("display", "none");
     }
@@ -171,61 +177,8 @@ export function setupPartnerDanceButton() {
     };*/
 }
 
-function applyBackground(imageUrl: string) {
-    if (!imageUrl) return;
-    const bgImage = document.getElementById("bgImage") as HTMLImageElement;
-    const bgVideo = document.getElementById("bgVideo") as HTMLVideoElement;
-    if (bgVideo) bgVideo.style.display = "none";
-
-    bgImage.src = imageUrl;
-    bgImage.style.display = "block";
-}
-
-export function setupBackground() {
-    const cachedImage = localStorage.getItem(BG_IMG_STORAGE_KEY);
-    if (cachedImage) {
-        applyBackground(cachedImage);
-    }
-}
-
-export function setupBackgroundUploadButton() {
-    const uploadBgBtn = document.getElementById("uploadBgBtn")!;
-    const bgUploadInput = document.getElementById("bgUploadInput")!;
-    const bgImage = document.getElementById("bgImage") as HTMLImageElement;
-
-    // Handle background uploads
-    uploadBgBtn.addEventListener("click", () => bgUploadInput.click());
-
-    bgUploadInput.addEventListener("change", (event) => {
-        const file = (event.target as HTMLInputElement).files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const imageUrl = e.target?.result as string;
-
-            // Hide video if it exists
-            const bgVideo = document.getElementById("bgVideo") as HTMLVideoElement;
-            if (bgVideo) bgVideo.style.display = "none";
-
-            // Replace the image source
-            bgImage.src = imageUrl;
-            bgImage.style.display = "block";
-
-            // ✅ Cache the image (as Base64)
-            try {
-                compressAndStore(file)
-            } catch (err) {
-                console.warn("Failed to save background image to localStorage (maybe too large):", err);
-            }
-
-            /*window.dispatchEvent(new StorageEvent("storage", {
-                key: BG_IMG_STORAGE_KEY,
-                newValue: imageUrl,
-            }));*/
-        };
-        reader.readAsDataURL(file);
-    });
+export async function setupBackground() {
+    await renderActiveBackground();
 }
 
 export function initHideQueueButton(buttonId: string = "hideQueueBtn") {
@@ -254,6 +207,37 @@ export function initRefreshButton() {
 
 }
 
+export function setupSetDanceButton() {
+    const setDanceBtn = document.getElementById("setDanceBtn") as HTMLButtonElement | null;
+    const setDanceForm = document.getElementById("setDanceForm") as HTMLFormElement | null;
+    const danceNameInput = document.getElementById("danceNameInput") as HTMLInputElement | null;
+
+    if (!setDanceBtn || !setDanceForm || !danceNameInput) return;
+    if (window.opener) return;
+
+    setDanceBtn.addEventListener("click", () => {
+        const opening = setDanceForm.hasAttribute("hidden");
+        if (opening) {
+            setDanceForm.removeAttribute("hidden");
+            danceNameInput.focus();
+            danceNameInput.select();
+        } else {
+            setDanceForm.setAttribute("hidden", "");
+        }
+    });
+
+    setDanceForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const ok = submitManualDanceName(danceNameInput.value);
+        if (!ok) {
+            danceNameInput.focus();
+            return;
+        }
+        danceNameInput.value = "";
+        setDanceForm.setAttribute("hidden", "");
+    });
+}
+
 // Event listener to make sure all updates to one window happen to others
 
 window.addEventListener("storage", (event) => {
@@ -263,12 +247,16 @@ window.addEventListener("storage", (event) => {
         if (!upNextQueue) return;
         upNextQueue.style.visibility = event.newValue === "true" ? "hidden" : "visible";
     }
-    if (event.key === BG_IMG_STORAGE_KEY && event.newValue) {
-        applyBackground(event.newValue);
+    if (event.key === ACTIVE_PROJECT_ID_KEY || event.key === ACTIVE_PROJECT_REV_KEY) {
+        void renderActiveBackground();
     }
 
     if (event.key === "refreshCurrPlaying") {
         resetTimeout();
+    }
+
+    if (event.key === "manualDanceOverride") {
+        applyManualDanceFromStorage();
     }
 });
 

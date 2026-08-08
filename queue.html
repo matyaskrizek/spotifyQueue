@@ -6,6 +6,7 @@
     <script src="src/script.ts" type="module"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="stylesheet" href="src/css/queue.css">
+    <link rel="stylesheet" href="src/css/backgroundEditor.css">
 
 </head>
 <body>
@@ -13,17 +14,28 @@
 <!-- Left sidebar -->
 <aside class="leftSidebar"></aside>
 
-<a id="profile" href="https://accounts.spotify.com/login">
-    <img id="imgUrl" src="public/default-avatar.png" alt="Spotify Profile" />
-</a>
+<!-- Background scene (always behind everything) -->
+<div id="backgroundContainer"></div>
 
-<!-- Background elements (always behind everything) -->
-<div id="backgroundContainer">
-    <video autoplay muted loop playsinline id="bgVideo">
-        <source src="/background.mp4" type="video/mp4">
-    </video>
-    <img id="bgImage" src="/RedBlackWhiteBoldHorseAlbumCover.png" alt="Background Image" />
-</div>
+<!-- Dedicated top-right section: settings, then profile -->
+<section id="userControls" class="user-controls" aria-label="User controls">
+    <div id="bgSettingsWrap" class="user-controls__settings">
+        <button type="button" id="bgSettingsBtn" class="user-controls__settings-btn" aria-label="Settings" title="Settings">⚙</button>
+        <div id="bgSettingsMenu" class="user-controls__menu" hidden>
+            <p class="bg-settings-title">Background</p>
+            <div class="bg-settings-actions">
+                <button type="button" id="bgSettingsEditBtn" class="action-btn">Edit Background</button>
+                <button type="button" id="bgSettingsNewBtn" class="action-btn secondary">New Project</button>
+                <button type="button" id="bgSettingsImportBtn" class="action-btn secondary">Import Project</button>
+            </div>
+            <p class="bg-settings-title">Saved projects</p>
+            <div id="bgSettingsProjectList"></div>
+        </div>
+    </div>
+    <a id="profile" class="user-controls__profile" href="https://accounts.spotify.com/login">
+        <img id="imgUrl" src="public/default-avatar.png" alt="Spotify Profile" />
+    </a>
+</section>
 
 <!-- Currently Playing Section (hidden initially) -->
 <div class="currentlyPlaying" style="display:none;">
@@ -43,14 +55,100 @@
 </button>
 
 <div id="bottomButtons">
-    <input type="file" id="bgUploadInput" accept="image/*" style="display: none;" />
+    <form id="setDanceForm" class="set-dance-form" hidden>
+        <input id="danceNameInput" type="text" placeholder="Dance name" autocomplete="off" />
+        <button type="submit" id="danceNameSubmit" class="action-btn">Save</button>
+    </form>
+    <button type="button" id="setDanceBtn" class="action-btn">Set Dance</button>
     <button id="openPopoutBtn" class="action-btn">Pop-out</button>
     <button id="partnerDanceBtn" class="action-btn">Partner Dance</button>
-    <button id="uploadBgBtn" class="action-btn">Upload Background</button>
     <button id="hideQueueBtn" class="action-btn">Hide Queue</button>
     <button id="togglePollingBtn" class="action-btn">Refresh</button>
 </div>
 
+<input type="file" id="bgProjectImportInput" accept=".zip,application/zip" hidden />
+<input type="file" id="bgMediaImageInput" accept="image/*,.gif" hidden />
+<input type="file" id="bgMediaVideoInput" accept="video/*,image/gif,.gif" hidden />
+
+<!-- Background editor (main window only) -->
+<div id="bgEditorOverlay" hidden>
+    <div class="bg-editor-topbar">
+        <input id="bgProjectName" type="text" placeholder="Project name" />
+        <span id="bgEditorDirty" class="bg-editor-dirty" hidden>Unsaved</span>
+        <button type="button" id="bgEditorSaveBtn" class="action-btn primary">Save</button>
+        <button type="button" id="bgEditorExportBtn" class="action-btn">Export</button>
+        <button type="button" id="bgEditorCancelBtn" class="action-btn">Cancel</button>
+        <button type="button" id="bgEditorCloseBtn" class="action-btn primary">Done</button>
+    </div>
+    <div class="bg-editor-body">
+        <aside class="bg-editor-toolbar">
+            <button type="button" id="bgAddTextBtn">Text</button>
+            <button type="button" id="bgAddImageBtn">Image</button>
+            <button type="button" id="bgAddVideoBtn">Video / GIF</button>
+            <button type="button" id="bgDeleteBtn">Delete</button>
+            <button type="button" id="bgForwardBtn">Forward</button>
+            <button type="button" id="bgBackBtn">Back</button>
+            <button type="button" id="bgUndoBtn">Undo</button>
+            <button type="button" id="bgRedoBtn">Redo</button>
+        </aside>
+        <div class="bg-editor-canvas-wrap">
+            <div id="bgEditorArtboard"></div>
+        </div>
+        <aside class="bg-editor-inspector">
+            <h3>Inspector</h3>
+            <p id="bgInspectorEmpty" class="bg-inspector-hint">Select an element to edit its properties.</p>
+            <div id="bgInspectorCommon" hidden>
+                <div class="bg-inspector-row">
+                    <label>X <input id="bgInX" type="number" /></label>
+                    <label>Y <input id="bgInY" type="number" /></label>
+                </div>
+                <div class="bg-inspector-row">
+                    <label>W <input id="bgInW" type="number" /></label>
+                    <label>H <input id="bgInH" type="number" /></label>
+                </div>
+                <div class="bg-inspector-row">
+                    <label>Rotate <input id="bgInRot" type="number" /></label>
+                    <label>Opacity <input id="bgInOpacity" type="number" min="0" max="1" step="0.05" /></label>
+                </div>
+            </div>
+            <div id="bgInspectorText" hidden>
+                <label>Text <textarea id="bgInText"></textarea></label>
+                <label>Font <select id="bgInFont"></select></label>
+                <div class="bg-inspector-row">
+                    <label>Size <input id="bgInFontSize" type="number" min="8" /></label>
+                    <label>Weight
+                        <select id="bgInWeight">
+                            <option value="400">Regular</option>
+                            <option value="700">Bold</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="bg-inspector-row">
+                    <label>Color <input id="bgInColor" type="color" /></label>
+                    <label>Align
+                        <select id="bgInAlign">
+                            <option value="left">Left</option>
+                            <option value="center">Center</option>
+                            <option value="right">Right</option>
+                        </select>
+                    </label>
+                </div>
+                <label style="flex-direction: row; align-items: center; gap: 8px;">
+                    <input id="bgInItalic" type="checkbox" /> Italic
+                </label>
+            </div>
+            <div id="bgInspectorMedia" hidden>
+                <label>Fit
+                    <select id="bgInObjectFit">
+                        <option value="cover">Cover</option>
+                        <option value="contain">Contain</option>
+                        <option value="fill">Fill</option>
+                    </select>
+                </label>
+            </div>
+        </aside>
+    </div>
+</div>
+
 </body>
 </html>
-

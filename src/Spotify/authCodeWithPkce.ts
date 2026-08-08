@@ -1,14 +1,24 @@
-// Must match Spotify Dashboard Redirect URIs exactly (localhost ≠ 127.0.0.1).
-const redirectUri =
-    import.meta.env.MODE === "development"
-        ? "http://127.0.0.1:5173/spotifyQueue/queue.html"
-        : "https://matyaskrizek.github.io/spotifyQueue/queue.html";
-
-function getRedirectUri(): string {
-    return redirectUri;
+/**
+ * Must match a Spotify Dashboard Redirect URI exactly.
+ * In development, use the current origin so the PKCE verifier in localStorage
+ * is available on the callback page (localhost ≠ 127.0.0.1, and port must match).
+ */
+export function getRedirectUri(): string {
+    if (import.meta.env.MODE === "development") {
+        const base = import.meta.env.BASE_URL.endsWith("/")
+            ? import.meta.env.BASE_URL
+            : `${import.meta.env.BASE_URL}/`;
+        return `${window.location.origin}${base}queue.html`;
+    }
+    return "https://matyaskrizek.github.io/spotifyQueue/queue.html";
 }
 
 export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
+    if (!clientId) {
+        console.error("Missing VITE_SPOTIFY_CLIENT_ID; cannot start Spotify auth");
+        return;
+    }
+
     const verifier = generateCodeVerifier(128);
     const challenge = await generateCodeChallenge(verifier);
     const redirectUri = getRedirectUri();
@@ -31,9 +41,9 @@ export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
     params.append("scope", scope);
     params.append("code_challenge_method", "S256");
     params.append("code_challenge", challenge);
-    // exactly the registered URI
     params.append("state", "from=spotify");
 
+    console.log("Starting Spotify auth with redirect_uri:", redirectUri);
     document.location = `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
 
@@ -60,12 +70,19 @@ export async function getUserAccessToken(clientId: string, code: string): Promis
     const verifier = localStorage.getItem("verifier");
     const redirectUri = getRedirectUri();
 
+    if (!verifier) {
+        throw new Error(
+            "Missing PKCE verifier in localStorage. Start login from the same origin you return to " +
+            `(expected callback: ${redirectUri}).`
+        );
+    }
+
     const params = new URLSearchParams();
     params.append("client_id", clientId);
     params.append("grant_type", "authorization_code");
     params.append("code", code);
     params.append("redirect_uri", redirectUri);
-    params.append("code_verifier", verifier!);
+    params.append("code_verifier", verifier);
 
     const result = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
@@ -74,11 +91,18 @@ export async function getUserAccessToken(clientId: string, code: string): Promis
     });
     const data = await result.json();
 
-    saveAccessAndRefreshToken(data.access_token, data.refresh_token, data.expires_in);
+    if (!result.ok || !data.access_token) {
+        throw new Error(
+            `Spotify token exchange failed (${result.status}): ${data.error || "unknown"}` +
+            (data.error_description ? ` — ${data.error_description}` : "")
+        );
+    }
 
+    saveAccessAndRefreshToken(data.access_token, data.refresh_token, data.expires_in);
+    localStorage.removeItem("verifier");
     window.history.replaceState({}, document.title, redirectUri);
 
-    return data.access_token;
+    return data.access_token as string;
 }
 
 // src/spotifyApi.ts
@@ -142,7 +166,8 @@ export function getCookie(name: string): string | null {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) {
-        return parts.pop()?.split(";").shift() || null;
+        const raw = parts.pop()?.split(";").shift();
+        return raw ? decodeURIComponent(raw) : null;
     }
     return null;
 }

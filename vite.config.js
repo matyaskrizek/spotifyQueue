@@ -12,8 +12,8 @@ export default defineConfig({
         }
     },
     server: {
-        host: "127.0.0.1", // match Spotify redirect URI (localhost ≠ 127.0.0.1)
-        open: true,
+        host: "127.0.0.1", // prefer 127.0.0.1 over localhost (Spotify treats them as different)
+        open: "/spotifyQueue/",
         port: 5173,
         strictPort: true, // fail if 5173 is taken instead of picking another port
         // Avoid browser CORS by proxying walls.dance through the Vite origin

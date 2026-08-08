@@ -11,6 +11,11 @@
     --tile-size: clamp(72px, calc((100dvh - 9rem) / 4), 180px);
     --sidebar-width: calc(var(--tile-size) + 2.5rem);
     --song-label-size: clamp(0.7rem, 1.8vh, 1.1rem);
+    --profile-size: clamp(44px, 8vmin, 72px);
+    --settings-btn-size: clamp(40px, 7vmin, 64px);
+    --settings-icon-size: clamp(22px, 4.5vmin, 36px);
+    --top-right-inset: clamp(0.5rem, 1.5vmin, 1rem);
+    --top-right-gap: clamp(0.45rem, 1.4vmin, 0.85rem);
 }
 
 /* ---------- Global Layout ---------- */
@@ -18,9 +23,8 @@ body {
     margin: 0;
     min-height: 100vh;
     min-height: 100dvh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    /* Avoid flex-centering: it pulls any non-fixed controls into the middle. */
+    display: block;
     overflow: hidden;
     background: #000;
     color: white;
@@ -34,28 +38,65 @@ body {
     overflow: hidden;
 }
 
-#backgroundContainer video,
-#backgroundContainer img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: brightness(0.7);
+/* Legacy full-bleed media rules removed; scene elements are styled in backgroundEditor.css */
+
+/* ---------- User controls section (top-right: settings | profile) ---------- */
+.user-controls {
+    position: fixed;
+    top: var(--top-right-inset);
+    right: var(--top-right-inset);
+    z-index: 100000;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--top-right-gap);
+    margin: 0;
+    padding: 0;
 }
 
-/* ---------- Profile Icon ---------- */
-#profile {
-    position: fixed;
-    top: 1rem;
-    right: 1rem;
-    width: 60px;
-    height: 60px;
+body.is-popout .user-controls {
+    display: none;
+}
+
+.user-controls__settings {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.user-controls__settings-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--settings-btn-size);
+    height: var(--settings-btn-size);
+    padding: 0;
+    border: 3px solid #ffffff;
+    border-radius: 50%;
+    color: #ffffff;
+    background: #1db954;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+    font-size: var(--settings-icon-size);
+    line-height: 1;
+}
+
+.user-controls__settings-btn:hover {
+    background: #1ed760;
+    transform: scale(1.08);
+}
+
+.user-controls__profile {
+    flex: 0 0 auto;
+    display: block;
+    width: var(--profile-size);
+    height: var(--profile-size);
     border-radius: 50%;
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    z-index: 5;
 }
 
-#profile img {
+.user-controls__profile img {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -64,7 +105,7 @@ body {
     cursor: pointer;
 }
 
-#profile img:hover {
+.user-controls__profile img:hover {
     transform: scale(1.1);
 }
 
@@ -92,10 +133,6 @@ body {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
     margin-bottom: 1.5rem;
     display: block;
-}
-
-#bgImage, #bgVideo {
-    display: none;
 }
 
 /* ---------- Titles ---------- */
@@ -228,16 +265,6 @@ body {
     transform: scale(1.05);
 }
 
-#uploadBgBtn {
-    background: linear-gradient(135deg, #6a5af9, #8e8fff);
-}
-
-#uploadBgBtn:hover {
-    background: linear-gradient(135deg, #8e8fff, #6a5af9);
-    transform: scale(1.05);
-}
-
-
 #hideQueueBtn {
     background: linear-gradient(135deg, #5fc7ff, #7baffe);
 }
@@ -253,6 +280,58 @@ body {
 
 #togglePollingBtn:hover {
     background: linear-gradient(135deg, #8e8fff, #6a5af9);
+    transform: scale(1.05);
+}
+
+#setDanceBtn {
+    background: linear-gradient(135deg, #e6a817, #f0c14b);
+    color: #1a1a1a;
+    text-shadow: none;
+}
+
+#setDanceBtn:hover {
+    background: linear-gradient(135deg, #f0c14b, #e6a817);
+    transform: scale(1.05);
+}
+
+.set-dance-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.set-dance-form[hidden] {
+    display: none;
+}
+
+#danceNameInput {
+    padding: 12px 14px;
+    font-size: 15px;
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    min-width: 160px;
+    outline: none;
+}
+
+#danceNameInput::placeholder {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+#danceNameInput:focus {
+    border-color: #f0c14b;
+}
+
+#danceNameSubmit {
+    background: linear-gradient(135deg, #e6a817, #f0c14b);
+    color: #1a1a1a;
+    text-shadow: none;
+}
+
+#danceNameSubmit:hover {
+    background: linear-gradient(135deg, #f0c14b, #e6a817);
     transform: scale(1.05);
 }
 
