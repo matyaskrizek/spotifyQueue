@@ -13,8 +13,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
+      # Secrets — Settings → Secrets and variables → Actions → Secrets
       VITE_SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
       VITE_WALLS_DANCE_API_KEY: ${{ secrets.WALLS_DANCE_API_KEY }}
+      # Non-secrets — Settings → Secrets and variables → Actions → Variables
+      # Default westwood; set WALLS_BAR to override without a workflow change.
+      VITE_WALLS_BAR: ${{ vars.WALLS_BAR || 'westwood' }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4

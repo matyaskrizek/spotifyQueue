@@ -46,3 +46,35 @@ interface EpisodeObject {
 
 
 type QueueItem = TrackObject | EpisodeObject;
+
+interface WallsDanceMatch {
+    dance: {
+        id: number;
+        name: string;
+        difficulty?: string;
+        displayName: string;
+    };
+    song: {
+        id?: number;
+        title: string;
+        artist?: string;
+    };
+    isPrimary?: boolean;
+}
+
+interface WallsSongsResponse {
+    query: string;
+    match: WallsDanceMatch | null;
+    alternates?: Array<{
+        dance: { id: number; displayName: string };
+        song: { title: string };
+    }>;
+    record?: {
+        kind: "play" | "search";
+        logged: boolean;
+        deduped: boolean;
+        id: number;
+        matched: boolean;
+        flaggedForReview: boolean;
+    };
+}

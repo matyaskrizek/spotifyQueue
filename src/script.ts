@@ -136,7 +136,7 @@ function setupSiteContentAndButtons() {
 async function pollQueueLoop(accessToken:string){
     try {
         const fullQueue = await fetchQueue(accessToken);
-        if (fullQueue) populateQueue(fullQueue);
+        if (fullQueue) await populateQueue(fullQueue);
         // Starting the constant queue refresh
         startQueuePolling(accessToken);
     } catch (e) {

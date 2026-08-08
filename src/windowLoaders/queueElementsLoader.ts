@@ -90,6 +90,67 @@ function getArtistName(item: QueueItem): string {
     return "";
 }
 
+function wallsApiUrl(path: string): string {
+    // In dev, proxy via Vite so the browser sees a same-origin request (avoids CORS).
+    return import.meta.env.DEV
+        ? `/walls-api${path}`
+        : `https://walls.dance${path}`;
+}
+
+type WallsDanceLookup =
+    | { ok: true; danceName: string | null } // HTTP 200; play already logged by API
+    | { ok: false }; // network / non-2xx / missing key — fall back to map + legacy log
+
+/**
+ * Look up a dance for the given song via walls.dance.
+ * On HTTP 200, `danceName` is the matched display name or null when unmatched.
+ * A successful response also logs a play when `bar` is provided.
+ */
+async function fetchDanceFromWalls(song: string): Promise<WallsDanceLookup> {
+    const apiKey = import.meta.env.VITE_WALLS_DANCE_API_KEY;
+    if (!apiKey) {
+        console.warn("VITE_WALLS_DANCE_API_KEY not set; skipping walls.dance song lookup");
+        return { ok: false };
+    }
+
+    const bar = import.meta.env.VITE_WALLS_BAR || "test-bar";
+    const params = new URLSearchParams({ q: song, bar });
+    const url = wallsApiUrl(`/api/v1/songs?${params}`);
+
+    console.log("[walls.dance] GET", url, {
+        apiKeyPresent: Boolean(apiKey),
+        apiKeySuffix: apiKey.slice(-6),
+    });
+
+    try {
+        const response = await fetch(url, {
+            headers: { "x-api-key": apiKey },
+        });
+
+        if (!response.ok) {
+            console.error(
+                "Failed to look up song on walls.dance:",
+                response.status,
+                response.statusText
+            );
+            return { ok: false };
+        }
+
+        const data = (await response.json()) as WallsSongsResponse;
+        console.log("[walls.dance] songs response", data);
+
+        if (!data.match) {
+            return { ok: true, danceName: null };
+        }
+
+        const danceName = data.match.dance.displayName || data.match.dance.name || null;
+        return { ok: true, danceName };
+    } catch (err) {
+        console.error("Error looking up song on walls.dance:", err);
+        return { ok: false };
+    }
+}
+
 async function logSongToWalls(song: string, artist: string, dance?: string): Promise<void> {
     const apiKey = import.meta.env.VITE_WALLS_DANCE_API_KEY;
     if (!apiKey) {
@@ -106,10 +167,7 @@ async function logSongToWalls(song: string, artist: string, dance?: string): Pro
         body.dance = dance;
     }
 
-    // In dev, proxy via Vite so the browser sees a same-origin request (avoids CORS).
-    const url = import.meta.env.DEV
-        ? "/walls-api/api/v1/log"
-        : "https://walls.dance/api/v1/log";
+    const url = wallsApiUrl("/api/v1/log");
     console.log("[walls.dance] POST", url, {
         body,
         apiKeyPresent: Boolean(apiKey),
@@ -153,11 +211,17 @@ async function logSongToWalls(song: string, artist: string, dance?: string): Pro
     }
 }
 
-export function populateQueue(fullQueue: FullQueue) {
+export async function populateQueue(fullQueue: FullQueue) {
     // Loading current Song Name
 
     document.getElementById("songTitle")!.innerText = fullQueue.currently_playing.name;
-    let danceName = songMap.get(fullQueue.currently_playing.name);
+    const songName = fullQueue.currently_playing.name;
+    const wallsLookup = await fetchDanceFromWalls(songName);
+    // Prefer walls.dance match; on error or null match, fall back to the built-in map.
+    const danceName =
+        wallsLookup.ok && wallsLookup.danceName
+            ? wallsLookup.danceName
+            : songMap.get(songName);
     const danceTitleElmnt = document.getElementById("danceTitle");
     if (danceTitleElmnt) {
         if (danceName) {
@@ -176,14 +240,17 @@ export function populateQueue(fullQueue: FullQueue) {
     displayNextSongs(nextSongs, 3);
     // if this is a partner dance: no line dance tutorial QR code to be shown
     if (!partnerDanceActive){
-      displayTutorialQRCode(fullQueue.currently_playing.name);
+      displayTutorialQRCode(songName);
     }
 
-    void logSongToWalls(
-        fullQueue.currently_playing.name,
-        getArtistName(fullQueue.currently_playing),
-        danceName
-    );
+    // GET /songs already logs on HTTP 200; only use POST /log when the lookup failed.
+    if (!wallsLookup.ok) {
+        void logSongToWalls(
+            songName,
+            getArtistName(fullQueue.currently_playing),
+            danceName
+        );
+    }
 }
 
 /*
@@ -269,7 +336,7 @@ export async function refreshQueue(accessToken: string): Promise<number> {
             if ((window as any).resetDanceTitle) {
                 (window as any).resetDanceTitle();
             }
-            populateQueue(fullQueue);
+            await populateQueue(fullQueue);
             // your function to show next 3 songs
             displayNextSongs(fullQueue.queue, 3);
             // Calculating the offset when to poll for the next song.
