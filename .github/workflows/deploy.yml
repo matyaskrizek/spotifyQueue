@@ -16,11 +16,10 @@ jobs:
       # Secrets — Settings → Secrets and variables → Actions → Secrets
       VITE_SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
       VITE_WALLS_DANCE_API_KEY: ${{ secrets.WALLS_DANCE_API_KEY }}
+      VITE_WALLS_API_BASE: ${{ secrets.WALLS_API_BASE }}
       # Non-secrets — Settings → Secrets and variables → Actions → Variables
       # Default westwood; set WALLS_BAR to override without a workflow change.
       VITE_WALLS_BAR: ${{ vars.WALLS_BAR || 'westwood' }}
-      # Cloudflare Worker origin, e.g. https://spotifyqueue.matyask99.workers.dev
-      VITE_WALLS_API_BASE: ${{ vars.WALLS_API_BASE }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
