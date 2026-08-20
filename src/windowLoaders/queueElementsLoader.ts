@@ -91,10 +91,12 @@ function getArtistName(item: QueueItem): string {
 }
 
 function wallsApiUrl(path: string): string {
-    // In dev, proxy via Vite so the browser sees a same-origin request (avoids CORS).
-    return import.meta.env.DEV
-        ? `/walls-api${path}`
-        : `https://walls.dance${path}`;
+    // Dev: Vite same-origin proxy. Production: Cloudflare Worker (CORS).
+    if (import.meta.env.DEV) {
+        return `/walls-api${path}`;
+    }
+    const base = (import.meta.env.VITE_WALLS_API_BASE || "https://walls.dance").replace(/\/$/, "");
+    return `${base}${path}`;
 }
 
 type WallsDanceLookup =

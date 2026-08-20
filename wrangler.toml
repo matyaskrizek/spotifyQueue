@@ -1,0 +1,13 @@
+# Cloudflare Git builds require this `name` to match the Worker in the dashboard.
+# If deploy fails with a name mismatch, change this to the dashboard Worker name.
+name = "spotifyqueue"
+main = "workers/walls-api-proxy/src/index.ts"
+compatibility_date = "2026-08-19"
+
+workers_dev = true
+
+# Optional: `npx wrangler secret put WALLS_DANCE_API_KEY`
+# If set, the Worker sends it upstream when the browser omits x-api-key.
+[vars]
+ALLOWED_ORIGINS = "https://matyaskrizek.github.io,http://127.0.0.1:5173"
+UPSTREAM = "https://walls.dance"

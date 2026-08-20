@@ -5,6 +5,7 @@ interface ImportMetaEnv {
     readonly VITE_SPOTIFY_CLIENT_SECRET: string;
     readonly VITE_WALLS_DANCE_API_KEY: string;
     readonly VITE_WALLS_BAR: string;
+    readonly VITE_WALLS_API_BASE: string;
 }
 
 interface ImportMeta {
