@@ -18,6 +18,12 @@ playwright-report
 .wrangler
 .dev.vars
 
+# Agent skills (only the MR review skill is shared)
+.cursor/skills/*
+!.cursor/skills/merge-request-review/
+.claude/skills
+.cursor/plans
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

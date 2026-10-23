@@ -131,6 +131,7 @@ async function optimizeGif(bytes: Uint8Array): Promise<Uint8Array> {
 async function decodeGifFrames(bytes: Uint8Array, info: GifInfo): Promise<Uint8Array[]> {
     const Decoder = (globalThis as unknown as { ImageDecoder?: ImageDecoderCtor }).ImageDecoder;
     if (!Decoder || !(await Decoder.isTypeSupported("image/gif"))) throw new Skip("no ImageDecoder");
+    if (typeof OffscreenCanvas === "undefined") throw new Skip("no OffscreenCanvas");
 
     const decoder = new Decoder({ data: bytes, type: "image/gif" });
     try {

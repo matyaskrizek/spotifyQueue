@@ -4,6 +4,8 @@ const OPTIMIZABLE_TYPES = new Set(["image/png", "image/gif"]);
 
 /** WebAssembly memory never shrinks, so an idle worker is shut down to give it back. */
 const IDLE_SHUTDOWN_MS = 30_000;
+/** A worker that hasn't answered by then is treated as stuck, and the original file is kept. */
+const REQUEST_TIMEOUT_MS = 180_000;
 
 let worker: Worker | null = null;
 let idleTimer: number | null = null;
@@ -13,6 +15,12 @@ const pending = new Map<number, (response: OptimizeResponse) => void>();
 function failPending(reason: string) {
     for (const [id, resolve] of pending) resolve({ id, result: null, reason });
     pending.clear();
+}
+
+function resetWorker(reason: string) {
+    worker?.terminate();
+    worker = null;
+    failPending(reason);
 }
 
 function scheduleIdleShutdown() {
@@ -45,9 +53,7 @@ function getWorker(): Worker | null {
     // A crashed worker (e.g. out of memory) is replaced on the next request.
     worker.onerror = (event) => {
         event.preventDefault();
-        worker?.terminate();
-        worker = null;
-        failPending(event.message || "worker crashed");
+        resetWorker(event.message || "worker crashed");
     };
     return worker;
 }
@@ -70,20 +76,37 @@ export function isOptimizable(mimeType: string): boolean {
 /**
  * Re-encodes PNGs and GIFs as lossless WebP off the main thread. Resolves to the
  * smaller file only when it was verified pixel-identical, otherwise to null so the
- * caller keeps the original.
+ * caller keeps the original. Never rejects: optimizing is optional.
  */
 export async function optimizeMedia(blob: Blob, mimeType: string): Promise<Blob | null> {
     if (!isOptimizable(mimeType)) return null;
-    // Read first: getWorker() cancels the idle shutdown, which only a reply reschedules.
-    const buffer = await blob.arrayBuffer();
+    if (typeof Worker === "undefined" || typeof WebAssembly === "undefined") return null;
+    let buffer: ArrayBuffer;
+    try {
+        // Read first: getWorker() cancels the idle shutdown, which only a reply reschedules.
+        buffer = await blob.arrayBuffer();
+    } catch (err) {
+        console.warn("Media optimizer couldn't read the file:", err);
+        return null;
+    }
     const target = getWorker();
     if (!target) return null;
 
     const id = nextRequestId++;
     const response = await new Promise<OptimizeResponse>((resolve) => {
-        pending.set(id, resolve);
-        const request: OptimizeRequest = { id, buffer, mimeType };
-        target.postMessage(request, [buffer]);
+        const timer = window.setTimeout(() => resetWorker("timed out"), REQUEST_TIMEOUT_MS);
+        pending.set(id, (reply) => {
+            clearTimeout(timer);
+            resolve(reply);
+        });
+        try {
+            const request: OptimizeRequest = { id, buffer, mimeType };
+            target.postMessage(request, [buffer]);
+        } catch (err) {
+            pending.get(id)?.({ id, result: null, reason: err instanceof Error ? err.message : String(err) });
+            pending.delete(id);
+            if (pending.size === 0) scheduleIdleShutdown();
+        }
     });
     if (!response.result) {
         console.info(`Kept original ${mimeType} (${response.reason ?? "no result"}).`);
