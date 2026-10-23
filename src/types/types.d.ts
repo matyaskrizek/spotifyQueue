@@ -47,6 +47,11 @@ interface EpisodeObject {
 
 type QueueItem = TrackObject | EpisodeObject;
 
+interface CurrentlyPlaying {
+    progress_ms: number;
+    item: (QueueItem & { duration_ms: number }) | null;
+}
+
 interface WallsDanceMatch {
     dance: {
         id: number;

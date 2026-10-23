@@ -51,7 +51,9 @@ export async function fetchCountryAlbums(accessToken: string, limit = 20) {
     const data = await res.json();
 
     // Extract album image URLs (small size for background)
-    return data.albums.items.map((album: any) => album.images[2]?.url || album.images[0]?.url).filter(Boolean);
+    return data.albums.items
+        .map((album: { images: Image[] }) => album.images[2]?.url || album.images[0]?.url)
+        .filter(Boolean);
 }
 
 
@@ -76,7 +78,7 @@ async function fetchWithAuth(url: string, token: string, clientId: string) {
 }
 
 // Example fetchCurrentlyPlaying function
-export async function fetchCurrentlyPlaying(token: string): Promise<any> {
+export async function fetchCurrentlyPlaying(token: string): Promise<CurrentlyPlaying | null> {
     const res = await fetchWithAuth("https://api.spotify.com/v1/me/player/currently-playing", token, clientId);
     if (res.status === 204) return null;  // nothing playing
     if (!res.ok) throw new SpotifyApiError("Currently playing fetch", res);

@@ -96,7 +96,7 @@ export async function downloadProjectZip(project: BackgroundProject): Promise<vo
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${project.name.replace(/[^\w\-]+/g, "_") || "background"}.bgproj.zip`;
+    a.download = `${project.name.replace(/[^\w-]+/g, "_") || "background"}.bgproj.zip`;
     a.click();
     // Revoking synchronously can cancel the download in Firefox/Safari
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
