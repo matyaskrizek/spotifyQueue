@@ -1,3 +1,6 @@
+# Maintainer
+ - Matyas K
+
 # Summary
 
 Application to show current queue in slideShow form, with the ability to add a map library to translate song names into dances.
@@ -13,7 +16,7 @@ Application to show current queue in slideShow form, with the ability to add a m
 1. Create project on [Spotify developers dashboard](https://developer.spotify.com/dashboard)
 1. Export the following environment variable: `VITE_SPOTIFY_CLIENT_ID`
 1. Add these Redirect URIs in the Spotify Dashboard (exact match required — `localhost` and `127.0.0.1` are different):
-   - `http://127.0.0.1:5173/spotifyQueue/queue.html` (local)
+   - `http://127.0.0.1:<dev-port>/spotifyQueue/queue.html` (local — use the port Vite prints, often 5173)
    - `https://matyaskrizek.github.io/spotifyQueue/queue.html` (production)
 
 1. Clone repo and `cd` into it

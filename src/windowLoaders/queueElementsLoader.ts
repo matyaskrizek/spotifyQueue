@@ -12,6 +12,7 @@ let queuePollingInterval: number;
 const songMap = await loadSongDanceMap(`${import.meta.env.BASE_URL}LineDanceMasterList.txt`);
 let currAccessToken: string;
 const defaultPollingRate = 5000;
+let pollingPaused = false;
 
 const MANUAL_DANCE_KEY = "manualDanceOverride";
 
@@ -101,8 +102,12 @@ export function startQueuePolling(accessToken: string) {
     } else {
         accessToken = currAccessToken;
     }
+    pollingPaused = false;
     const poll = async () => {
+        if (pollingPaused) return;
         let currTimeout = await refreshQueue(accessToken);
+        // A poll may still be awaiting Spotify when the session gets paused
+        if (pollingPaused) return;
         console.log("polling with wait: ", currTimeout);
         queuePollingInterval = window.setTimeout(poll, currTimeout);
     };
@@ -110,7 +115,13 @@ export function startQueuePolling(accessToken: string) {
     poll();
 }
 
+export function stopQueuePolling() {
+    pollingPaused = true;
+    clearTimeout(queuePollingInterval);
+}
+
 export function resetTimeout(){
+    if (pollingPaused) return;
     clearTimeout(queuePollingInterval);
     startQueuePolling(currAccessToken)
 }
@@ -172,10 +183,12 @@ function getArtistName(item: QueueItem): string {
 }
 
 function wallsApiUrl(path: string): string {
-    // In dev, proxy via Vite so the browser sees a same-origin request (avoids CORS).
-    return import.meta.env.DEV
-        ? `/walls-api${path}`
-        : `https://walls.dance${path}`;
+    // Dev: Vite same-origin proxy. Production: Cloudflare Worker (CORS).
+    if (import.meta.env.DEV) {
+        return `/walls-api${path}`;
+    }
+    const base = (import.meta.env.VITE_WALLS_API_BASE || "https://walls.dance").replace(/\/$/, "");
+    return `${base}${path}`;
 }
 
 type WallsDanceLookup =

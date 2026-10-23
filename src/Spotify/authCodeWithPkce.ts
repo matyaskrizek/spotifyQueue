@@ -1,16 +1,23 @@
+const PRODUCTION_REDIRECT_URI =
+    "https://matyaskrizek.github.io/spotifyQueue/queue.html";
+
 /**
  * Must match a Spotify Dashboard Redirect URI exactly.
  * In development, use the current origin so the PKCE verifier in localStorage
  * is available on the callback page (localhost ≠ 127.0.0.1, and port must match).
  */
 export function getRedirectUri(): string {
-    if (import.meta.env.MODE === "development") {
-        const base = import.meta.env.BASE_URL.endsWith("/")
-            ? import.meta.env.BASE_URL
-            : `${import.meta.env.BASE_URL}/`;
-        return `${window.location.origin}${base}queue.html`;
+    if (import.meta.env.PROD) {
+        return PRODUCTION_REDIRECT_URI;
     }
-    return "https://matyaskrizek.github.io/spotifyQueue/queue.html";
+    const override = import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
+    if (override) {
+        return override;
+    }
+    const base = import.meta.env.BASE_URL.endsWith("/")
+        ? import.meta.env.BASE_URL
+        : `${import.meta.env.BASE_URL}/`;
+    return `${window.location.origin}${base}queue.html`;
 }
 
 export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
@@ -100,7 +107,7 @@ export async function getUserAccessToken(clientId: string, code: string): Promis
 
     saveAccessAndRefreshToken(data.access_token, data.refresh_token, data.expires_in);
     localStorage.removeItem("verifier");
-    window.history.replaceState({}, document.title, redirectUri);
+    window.history.replaceState({}, document.title, new URL(redirectUri).pathname);
 
     return data.access_token as string;
 }

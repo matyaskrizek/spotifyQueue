@@ -15,7 +15,7 @@ export default defineConfig({
         host: "127.0.0.1", // prefer 127.0.0.1 over localhost (Spotify treats them as different)
         open: "/spotifyQueue/",
         port: 5173,
-        strictPort: true, // fail if 5173 is taken instead of picking another port
+        // If 5173 is taken, Vite picks the next free port; OAuth uses window.location.origin.
         // Avoid browser CORS by proxying walls.dance through the Vite origin
         proxy: {
             "/walls-api": {

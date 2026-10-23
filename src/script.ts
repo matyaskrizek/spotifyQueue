@@ -9,6 +9,7 @@ import {
     initRefreshButton, setupSetDanceButton
 } from "./windowLoaders/pop-outWindowLoader.ts";
 import { setupBackgroundEditor } from "./backgroundEditor/editorController.ts";
+import {initSessionTimeout} from "./windowLoaders/sessionTimeoutLoader.ts";
 
 
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
@@ -100,6 +101,8 @@ async function init() {
         const profile = await fetchProfile(accessToken);
         populateProfileImage(profile);
         pollQueueLoop(accessToken);
+        // Pause polling/visuals after 5 hours until the user refreshes the session
+        initSessionTimeout();
     } catch (err) {
         // Do not re-enter the Spotify authorize flow on app errors — that loops the consent page.
         console.error("Initialization failed:", err);

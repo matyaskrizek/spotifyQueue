@@ -357,6 +357,56 @@ body.is-popout .user-controls {
     background: rgba(30, 215, 96, 0.9);
 }
 
+/* ---------- Session Timeout Overlay ---------- */
+#sessionOverlay {
+    position: fixed;
+    inset: 0;
+    /* Above the background editor and settings menu */
+    z-index: 200000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: grayscale(1) blur(3px);
+}
+
+#sessionOverlay[hidden] {
+    display: none;
+}
+
+.sessionDialog {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem 2.5rem;
+    border-radius: 16px;
+    background: rgba(20, 20, 20, 0.85);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    text-align: center;
+}
+
+.sessionDialog p {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+#sessionRefreshBtn {
+    background: linear-gradient(135deg, #1db954, #1ed760);
+    font-size: 20px;
+    padding: 16px 32px;
+}
+
+#sessionRefreshBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1ed760, #1db954);
+    transform: scale(1.05);
+}
+
+#sessionRefreshBtn:disabled {
+    cursor: wait;
+    opacity: 0.7;
+}
+
 #qrCodeContainer {
     flex: 0 0 auto;
     width: var(--tile-size);
