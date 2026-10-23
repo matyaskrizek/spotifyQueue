@@ -53,11 +53,12 @@ Applies to changes under `src/`, the HTML entry pages, `vite.config.js`, `tsconf
 - [ ] Layout works in the pop-out window and at the display sizes the queue is shown on
 - [ ] Interactive elements are real `<button>`s / have labels; keyboard shortcuts don't fire while typing in inputs
 
-## Verification (no automated tests in this repo)
+## Verification
 
-- [ ] `npx tsc --noEmit` and `npm run build` pass
-- [ ] Review lists concrete manual steps (login flow, queue display, pop-out, editor open/save/import/export, session timeout) relevant to the diff
-- [ ] Logic that is pure and non-trivial (parsers like `danceMapLoader`, data migrations) is a candidate for adding a first unit test -- suggest it as INFO
+- [ ] `npm run typecheck`, `npm test` and `npm run build` pass; run `npm run test:e2e` when the diff touches the queue page, editor, media handling or pop-out
+- [ ] Changed behaviour has a test next to the code (`src/**/*.test.ts`, Vitest) or, for flows that need a real browser, in `e2e/` (Playwright with mocked Spotify) -- missing tests for new logic are a WARNING
+- [ ] New tests would fail if the fix were reverted (not just asserting on mocks)
+- [ ] Review lists manual steps only for what the tests can't cover (real Spotify login, real walls.dance, multi-monitor pop-out)
 
 ## Common Patterns to Verify
 
