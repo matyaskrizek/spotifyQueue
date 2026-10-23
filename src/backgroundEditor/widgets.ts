@@ -13,7 +13,10 @@ import {
 } from "../windowLoaders/playbackState.ts";
 
 // qrcode.js is loaded from a CDN in queue.html
-declare var QRCode: any;
+declare const QRCode: {
+    new (element: HTMLElement, options: Record<string, unknown>): unknown;
+    CorrectLevel: { L: number; M: number; Q: number; H: number };
+};
 
 const TEXT_SHADOW = "2px 2px 6px rgba(0, 0, 0, 0.9)";
 const LIST_GAP = 8;

@@ -5,8 +5,7 @@ import { updatePlaybackState, type TrackSummary } from "./playbackState.ts";
 
 
 let lastTrackId: string | null = null;
-// @ts-ignore
-let queuePollingInterval: number;
+let queuePollingInterval: number | undefined;
 let songMapPromise: Promise<Map<string, string>> | null = null;
 
 /** The built-in song → dance list, fetched on first use. */
@@ -383,9 +382,7 @@ export async function refreshQueue(accessToken: string): Promise<number> {
     // Only update queue if the track changed
     if (currentTrackId !== lastTrackId) {
         const fullQueue = await fetchQueue(accessToken);
-        if ((window as any).resetDanceTitle) {
-            (window as any).resetDanceTitle();
-        }
+        (window as Window & { resetDanceTitle?: () => void }).resetDanceTitle?.();
         await populateQueue(fullQueue);
         lastTrackId = currentTrackId;
         // Calculating the offset when to poll for the next song.
