@@ -9,6 +9,7 @@ import {
     initFullscreenButton, setupPartnerDanceButton, setupBackgroundUploadButton, setupBackground, initHideQueueButton,
     initRefreshButton
 } from "./windowLoaders/pop-outWindowLoader.ts";
+import {initSessionTimeout} from "./windowLoaders/sessionTimeoutLoader.ts";
 
 
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
@@ -101,6 +102,8 @@ async function init() {
         populateProfileImage(profile);
         // Fetching the queue
         pollQueueLoop(accessToken);
+        // Pause polling/visuals after 5 hours until the user refreshes the session
+        initSessionTimeout();
 
     } catch (err) {
         console.error("Initialization failed, redirecting:", err);

@@ -12,6 +12,7 @@ let queuePollingInterval: number;
 const songMap = await loadSongDanceMap(`${import.meta.env.BASE_URL}LineDanceMasterList.txt`);
 let currAccessToken: string;
 const defaultPollingRate = 5000;
+let pollingPaused = false;
 
 // Poll every X seconds Based on the remaining time left in the current song
 export function startQueuePolling(accessToken: string) {
@@ -20,8 +21,12 @@ export function startQueuePolling(accessToken: string) {
     } else {
         accessToken = currAccessToken;
     }
+    pollingPaused = false;
     const poll = async () => {
+        if (pollingPaused) return;
         let currTimeout = await refreshQueue(accessToken);
+        // A poll may still be awaiting Spotify when the session gets paused
+        if (pollingPaused) return;
         console.log("polling with wait: ", currTimeout);
         queuePollingInterval = window.setTimeout(poll, currTimeout);
     };
@@ -29,7 +34,13 @@ export function startQueuePolling(accessToken: string) {
     poll();
 }
 
+export function stopQueuePolling() {
+    pollingPaused = true;
+    clearTimeout(queuePollingInterval);
+}
+
 export function resetTimeout(){
+    if (pollingPaused) return;
     clearTimeout(queuePollingInterval);
     startQueuePolling(currAccessToken)
 }

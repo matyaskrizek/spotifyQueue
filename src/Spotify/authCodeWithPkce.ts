@@ -1,11 +1,17 @@
-// Must match Spotify Dashboard Redirect URIs exactly (localhost ≠ 127.0.0.1).
-const redirectUri =
-    import.meta.env.MODE === "development"
-        ? "http://127.0.0.1:5173/spotifyQueue/queue.html"
-        : "https://matyaskrizek.github.io/spotifyQueue/queue.html";
+const PRODUCTION_REDIRECT_URI =
+    "https://matyaskrizek.github.io/spotifyQueue/queue.html";
 
+// Must match a Spotify Dashboard Redirect URI exactly (localhost ≠ 127.0.0.1).
+// In development, follow the origin you actually opened (Vite may not be on 5173).
 function getRedirectUri(): string {
-    return redirectUri;
+    if (import.meta.env.PROD) {
+        return PRODUCTION_REDIRECT_URI;
+    }
+    const override = import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
+    if (override) {
+        return override;
+    }
+    return new URL("queue.html", `${window.location.origin}${import.meta.env.BASE_URL}`).href;
 }
 
 export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
@@ -76,7 +82,7 @@ export async function getUserAccessToken(clientId: string, code: string): Promis
 
     saveAccessAndRefreshToken(data.access_token, data.refresh_token, data.expires_in);
 
-    window.history.replaceState({}, document.title, redirectUri);
+    window.history.replaceState({}, document.title, new URL(redirectUri).pathname);
 
     return data.access_token;
 }
