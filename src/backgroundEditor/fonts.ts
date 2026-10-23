@@ -21,7 +21,7 @@ function buildGoogleFontsUrl(families: string[]): string {
 }
 
 export function ensureFontsLoaded(families: string[] = [...CURATED_FONTS]): Promise<void> {
-    const needed = families.filter((f) => !loaded.has(f));
+    const needed = [...new Set(families)].filter((f) => !loaded.has(f));
     if (needed.length === 0) return Promise.resolve();
 
     const href = buildGoogleFontsUrl(needed);

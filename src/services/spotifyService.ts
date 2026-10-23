@@ -16,23 +16,30 @@ export async function fetchProfile(token: string): Promise<UserProfile> {
     return await result.json();
 }
 
-export async function fetchQueue(token: string): Promise<FullQueue | null> {
-    const playbackState = await fetchWithAuth('https://api.spotify.com/v1/me/player', token, clientId);
-    if (!playbackState.ok) {
-        console.error('No active playback device or session');
-        return null;
-    } else {
-        const result = await fetchWithAuth(
-            "https://api.spotify.com/v1/me/player/queue",
-            token,
-            clientId
-        );
-        if (!result.ok) {
-            console.error("Queue fetch failed", result.status, result.statusText, await result.text());
-            throw new Error("Failed to fetch queue");
-        }
-        return await result.json();
+/** A non-OK Spotify response. `retryAfterMs` comes from a 429's `Retry-After` header, when readable. */
+export class SpotifyApiError extends Error {
+    status: number;
+    retryAfterMs: number | null;
+
+    constructor(what: string, response: Response) {
+        super(`${what} failed: ${response.status} ${response.statusText}`);
+        this.name = "SpotifyApiError";
+        this.status = response.status;
+        const retryAfterSeconds = Number(response.headers.get("Retry-After"));
+        this.retryAfterMs = retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : null;
     }
+}
+
+export async function fetchQueue(token: string): Promise<FullQueue> {
+    const playbackState = await fetchWithAuth('https://api.spotify.com/v1/me/player', token, clientId);
+    if (!playbackState.ok) throw new SpotifyApiError("Playback state fetch", playbackState);
+    const result = await fetchWithAuth(
+        "https://api.spotify.com/v1/me/player/queue",
+        token,
+        clientId
+    );
+    if (!result.ok) throw new SpotifyApiError("Queue fetch", result);
+    return await result.json();
 }
 
 // src/fetchAlbums.ts
@@ -49,8 +56,11 @@ export async function fetchCountryAlbums(accessToken: string, limit = 20) {
 
 
 async function fetchWithAuth(url: string, token: string, clientId: string) {
+    // Callers like the poll loop keep the token they started with; after a refresh
+    // (in this window or the other one) the newest one is in localStorage.
+    const currentToken = localStorage.getItem("access_token") || token;
     let result = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${currentToken}` }
     });
 
     if (result.status === 401) { // token expired
@@ -69,5 +79,6 @@ async function fetchWithAuth(url: string, token: string, clientId: string) {
 export async function fetchCurrentlyPlaying(token: string): Promise<any> {
     const res = await fetchWithAuth("https://api.spotify.com/v1/me/player/currently-playing", token, clientId);
     if (res.status === 204) return null;  // nothing playing
+    if (!res.ok) throw new SpotifyApiError("Currently playing fetch", res);
     return await res.json();
 }

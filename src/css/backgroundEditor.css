@@ -1,11 +1,6 @@
-/* ---------- Settings menu drops DOWN from the gear ---------- */
-.user-controls__menu,
+/* ---------- Settings menu (positioned next to the settings widget in JS) ---------- */
 #bgSettingsMenu {
-    position: absolute;
-    top: calc(100% + 10px);
-    bottom: auto;
-    right: 0;
-    left: auto;
+    position: fixed;
     width: min(320px, 85vw);
     max-height: min(60vh, 480px);
     overflow: auto;
@@ -102,7 +97,11 @@
     cursor: pointer;
 }
 
-/* ---------- Scene playback ---------- */
+.bg-settings-mini-btn.danger {
+    background: #c0392b;
+}
+
+/* ---------- Scene playback (shown exactly as designed, no dimming) ---------- */
 #backgroundContainer {
     background: #000;
 }
@@ -115,12 +114,199 @@
 #backgroundContainer .bg-el video {
     width: 100%;
     height: 100%;
-    filter: brightness(0.7);
 }
 
-body.bg-editor-open #backgroundContainer .bg-el img,
-body.bg-editor-open #backgroundContainer .bg-el video {
-    filter: none;
+#backgroundContainer .bg-widget-interactive {
+    pointer-events: auto;
+}
+
+#backgroundContainer .bg-autohide {
+    transition: opacity 0.3s ease;
+}
+
+body:not(.controls-awake) #backgroundContainer .bg-autohide {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+body.queue-hidden #backgroundContainer .bg-widget-upNext,
+body.queue-hidden #backgroundContainer .bg-widget-qrCode {
+    visibility: hidden;
+}
+
+/* ---------- Widgets ---------- */
+.bg-widget-filled {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.bg-widget-btn {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 0 0.6em;
+    margin: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-shadow: inherit;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+#backgroundContainer .bg-widget-interactive:hover {
+    filter: brightness(1.12);
+}
+
+.bg-widget-fill-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.bg-profile {
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: inherit;
+    overflow: hidden;
+    background: transparent;
+    cursor: pointer;
+}
+
+.bg-widget-placeholder {
+    opacity: 0.45;
+    font-style: italic;
+}
+
+.bg-now-playing {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.bg-now-playing-art {
+    flex: 0 0 auto;
+    display: block;
+    object-fit: cover;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.bg-now-playing-art-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.08);
+    outline: 2px dashed rgba(255, 255, 255, 0.25);
+    box-shadow: none;
+    font-size: 32px;
+}
+
+.bg-now-playing-titles {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    min-width: 0;
+}
+
+.bg-now-playing-title {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bg-now-playing-title-wrap {
+    white-space: normal;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.bg-track-list {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    height: 100%;
+}
+
+.bg-track {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-width: 0;
+}
+
+.bg-track-art {
+    flex: 0 0 auto;
+    display: block;
+    object-fit: cover;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+    box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.bg-track-name {
+    max-width: 100%;
+    margin-top: 4px;
+    padding: 0 0.35em;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bg-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+}
+
+.bg-qr-box {
+    flex: 0 0 auto;
+    overflow: hidden;
+    background: #fff;
+}
+
+.bg-qr-box canvas,
+.bg-qr-box img {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.bg-qr-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    font-size: 48px;
+    font-weight: 700;
+    opacity: 0.6;
+}
+
+.bg-qr-caption {
+    margin-top: 6px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 
 /* ---------- Editor overlay ---------- */
@@ -173,10 +359,52 @@ body.bg-editor-open #backgroundContainer .bg-el video {
     color: #f0c14b;
 }
 
+.bg-editor-media-status {
+    font-size: 12px;
+    color: #9ad0ff;
+}
+
 .bg-editor-body {
+    --bg-toolbar-width: 72px;
+    --bg-inspector-width: 260px;
+    position: relative;
     display: grid;
-    grid-template-columns: 72px 1fr 260px;
+    grid-template-columns: var(--bg-toolbar-width) 1fr var(--bg-inspector-width);
     min-height: 0;
+}
+
+.bg-editor-resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 30;
+    width: 8px;
+    cursor: col-resize;
+    touch-action: none;
+}
+
+.bg-editor-resize-handle.left {
+    left: calc(var(--bg-toolbar-width) - 4px);
+}
+
+.bg-editor-resize-handle.right {
+    right: calc(var(--bg-inspector-width) - 4px);
+}
+
+.bg-editor-resize-handle::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3px;
+    width: 2px;
+    background: transparent;
+    transition: background 0.15s;
+}
+
+.bg-editor-resize-handle:hover::after,
+.bg-editor-resize-handle.dragging::after {
+    background: #1db954;
 }
 
 .bg-editor-toolbar {
@@ -244,9 +472,88 @@ body.bg-editor-open #backgroundContainer .bg-el video {
     min-height: 40px;
 }
 
-#bgEditorArtboard .bg-el img,
-#bgEditorArtboard .bg-el video {
-    filter: none;
+/* Widgets are placed, not used, while editing. */
+#bgEditorArtboard .bg-widget * {
+    pointer-events: none;
+}
+
+.bg-editor-toolbar button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+#bgWidgetMenu {
+    position: absolute;
+    left: 8px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 220px;
+    max-height: calc(100% - 16px);
+    overflow: auto;
+    padding: 8px;
+    border-radius: 12px;
+    background: rgba(18, 18, 18, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+    box-sizing: border-box;
+}
+
+#bgWidgetMenu[hidden] {
+    display: none;
+}
+
+.bg-widget-menu-heading {
+    margin: 8px 6px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.bg-widget-menu-heading:first-child {
+    margin-top: 2px;
+}
+
+#bgWidgetMenu button {
+    padding: 8px 10px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #fff;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+#bgWidgetMenu button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.bg-inspector-subheading {
+    margin: 14px 0 8px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.bg-inspector-kind {
+    margin: 0 0 10px;
+    font-weight: 700;
+    color: #1ed760;
+}
+
+.bg-editor-inspector label.bg-inspector-check {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+.bg-editor-inspector [hidden] {
+    display: none !important;
 }
 
 .bg-editor-inspector {
@@ -292,8 +599,15 @@ body.bg-editor-open #backgroundContainer .bg-el video {
     gap: 8px;
 }
 
+.bg-inspector-btn {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 13px;
+    background: #333;
+}
+
 .bg-inspector-hint {
-    margin: 0;
+    margin: 0 0 12px;
     color: rgba(255, 255, 255, 0.45);
     font-size: 12px;
 }

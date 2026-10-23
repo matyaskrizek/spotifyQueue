@@ -1,5 +1,8 @@
 const PRODUCTION_REDIRECT_URI =
     "https://matyaskrizek.github.io/spotifyQueue/queue.html";
+const FORCE_DIALOG_KEY = "spotifyForceDialog";
+/** Written on logout so other windows of the app follow. */
+export const LOGGED_OUT_KEY = "loggedOutAt";
 
 /**
  * Must match a Spotify Dashboard Redirect URI exactly.
@@ -49,8 +52,9 @@ export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
     params.append("code_challenge_method", "S256");
     params.append("code_challenge", challenge);
     params.append("state", "from=spotify");
+    // After a logout, make Spotify ask instead of silently reusing its signed-in account.
+    if (localStorage.getItem(FORCE_DIALOG_KEY)) params.append("show_dialog", "true");
 
-    console.log("Starting Spotify auth with redirect_uri:", redirectUri);
     document.location = `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
 
@@ -107,6 +111,7 @@ export async function getUserAccessToken(clientId: string, code: string): Promis
 
     saveAccessAndRefreshToken(data.access_token, data.refresh_token, data.expires_in);
     localStorage.removeItem("verifier");
+    localStorage.removeItem(FORCE_DIALOG_KEY);
     window.history.replaceState({}, document.title, new URL(redirectUri).pathname);
 
     return data.access_token as string;
@@ -147,9 +152,12 @@ export async function refreshAccessToken(clientId: string): Promise<string> {
         body: params
     });
 
-    const data = await result.json();
+    const data = await result.json().catch(() => ({}));
+    if (!result.ok || !data.access_token) {
+        throw new Error(`Token refresh failed: ${result.status} ${data.error ?? result.statusText}`);
+    }
     saveAccessAndRefreshToken(data.access_token, data.refresh_token, data.expires_in);
-    return data.access_token;
+    return data.access_token as string;
 }
 
 function saveAccessAndRefreshToken(accessToken: string, refreshToken: string, expiresIn: number) {
@@ -181,4 +189,31 @@ export function getCookie(name: string): string | null {
 
 export function deleteCookie(name: string) {
     document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+}
+
+export function clearStoredSession() {
+    for (const key of ["access_token", "refresh_token", "verifier"]) localStorage.removeItem(key);
+    for (const name of [
+        "spotifyAccessTokenForMyApp",
+        "spotifyRefreshTokenForMyApp",
+        "spotifyTokenExpiryForMyApp",
+        "spotifyRetries",
+    ]) {
+        deleteCookie(name);
+    }
+}
+
+export function redirectToLandingPage() {
+    window.location.replace(import.meta.env.BASE_URL);
+}
+
+/**
+ * Clears this app's tokens only; Spotify itself stays signed in, so the next
+ * login shows Spotify's consent screen (with "Not you?") instead of skipping it.
+ */
+export function logoutOfSpotify(onDone: () => void = redirectToLandingPage) {
+    clearStoredSession();
+    localStorage.setItem(FORCE_DIALOG_KEY, "true");
+    localStorage.setItem(LOGGED_OUT_KEY, Date.now().toString());
+    onDone();
 }

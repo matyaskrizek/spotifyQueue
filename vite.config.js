@@ -11,6 +11,14 @@ export default defineConfig({
             }
         }
     },
+    // The media optimizer worker lazy-loads its WebAssembly encoders, which needs ES module output.
+    worker: {
+        format: 'es',
+    },
+    // Pre-bundling moves these packages away from the .wasm files they load via import.meta.url.
+    optimizeDeps: {
+        exclude: ['@jsquash/png', '@jsquash/webp', 'wasm-webp'],
+    },
     server: {
         host: "127.0.0.1", // prefer 127.0.0.1 over localhost (Spotify treats them as different)
         open: "/spotifyQueue/",

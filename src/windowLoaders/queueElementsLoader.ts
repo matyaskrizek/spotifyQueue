@@ -1,18 +1,26 @@
-import {fetchQueue, fetchCurrentlyPlaying} from "../services/spotifyService.ts"
+import {fetchQueue, fetchCurrentlyPlaying, SpotifyApiError} from "../services/spotifyService.ts"
 import {loadSongDanceMap} from "../parsers/danceMapLoader.ts";
-import { partnerDanceActive } from "./pop-outWindowLoader.ts";
-
-// we load qrcode.js in HTML using CDN
-declare var QRCode: any; // silence compiler during `npm run build`
+import { isPopoutWindow } from "./windowRole.ts";
+import { updatePlaybackState, type TrackSummary } from "./playbackState.ts";
 
 
 let lastTrackId: string | null = null;
 // @ts-ignore
 let queuePollingInterval: number;
-const songMap = await loadSongDanceMap(`${import.meta.env.BASE_URL}LineDanceMasterList.txt`);
+let songMapPromise: Promise<Map<string, string>> | null = null;
+
+/** The built-in song → dance list, fetched on first use. */
+function getSongMap(): Promise<Map<string, string>> {
+    songMapPromise ??= loadSongDanceMap(`${import.meta.env.BASE_URL}LineDanceMasterList.txt`);
+    return songMapPromise;
+}
 let currAccessToken: string;
 const defaultPollingRate = 5000;
+/** Failed polls double the wait from `defaultPollingRate`, up to this cap. */
+const MAX_BACKOFF_MS = 2 * 60 * 1000;
 let pollingPaused = false;
+/** Bumped on every (re)start so a poll still awaiting Spotify can't keep an old loop alive. */
+let pollGeneration = 0;
 
 const MANUAL_DANCE_KEY = "manualDanceOverride";
 
@@ -42,31 +50,21 @@ function clearManualDanceStorage(): void {
     localStorage.removeItem(MANUAL_DANCE_KEY);
 }
 
+// The pop-out picks up manual overrides through the `manualDanceOverride` storage event.
 function setDanceTitleDisplay(danceName: string | undefined | null): void {
-    const danceTitleElmnt = document.getElementById("danceTitle");
-    if (!danceTitleElmnt) return;
+    updatePlaybackState({ danceTitle: danceName ?? "" });
+}
 
-    if (danceName) {
-        danceTitleElmnt.innerText = danceName;
-        danceTitleElmnt.style.visibility = "visible";
-    } else {
-        danceTitleElmnt.innerText = "";
-        danceTitleElmnt.style.visibility = "hidden";
-    }
+// populateQueue runs more than once per track (startup fetch + first poll),
+// so remember which track was logged to record each play once.
+let loggedTrackId: string | null = null;
 
-    // Keep the pop-out in sync when this window owns the override.
-    if ((window as any).popoutRef && !(window as any).popoutRef.closed) {
-        const popDanceTitle = (window as any).popoutRef.document.getElementById("danceTitle");
-        if (popDanceTitle) {
-            if (danceName) {
-                popDanceTitle.innerText = danceName;
-                popDanceTitle.style.visibility = "visible";
-            } else {
-                popDanceTitle.innerText = "";
-                popDanceTitle.style.visibility = "hidden";
-            }
-        }
-    }
+function logPlayOnce(trackId: string, song: string, artist: string, dance?: string) {
+    // Only the main window logs; the pop-out would double-count every play.
+    if (isPopoutWindow()) return;
+    if (loggedTrackId === trackId) return;
+    loggedTrackId = trackId;
+    void logSongToWalls(song, artist, dance);
 }
 
 /** Apply a user-entered dance name for the currently playing song and log it. */
@@ -81,7 +79,10 @@ export function submitManualDanceName(danceName: string): boolean {
     manualDanceName = trimmed;
     writeManualDance({ trackId: currentTrack.id, danceName: trimmed });
     setDanceTitleDisplay(trimmed);
-    void logSongToWalls(currentTrack.name, currentTrack.artist, trimmed);
+    // The play was already logged with the auto-detected dance; record the correction.
+    if (!isPopoutWindow()) {
+        void logSongToWalls(currentTrack.name, currentTrack.artist, trimmed);
+    }
     return true;
 }
 
@@ -95,6 +96,15 @@ export function applyManualDanceFromStorage(): void {
     }
 }
 
+/**
+ * Wait before retrying after `failedPolls` earlier failures in a row: doubles from
+ * the default rate up to the cap. Spotify's own retry time wins when it asks for longer.
+ */
+export function nextPollDelay(failedPolls: number, retryAfterMs: number | null): number {
+    const backoff = Math.min(defaultPollingRate * 2 ** failedPolls, MAX_BACKOFF_MS);
+    return Math.max(backoff, retryAfterMs ?? 0);
+}
+
 // Poll every X seconds Based on the remaining time left in the current song
 export function startQueuePolling(accessToken: string) {
     if(accessToken != null && accessToken != "") {
@@ -103,13 +113,24 @@ export function startQueuePolling(accessToken: string) {
         accessToken = currAccessToken;
     }
     pollingPaused = false;
+    clearTimeout(queuePollingInterval);
+    const generation = ++pollGeneration;
+    let failedPolls = 0;
     const poll = async () => {
-        if (pollingPaused) return;
-        let currTimeout = await refreshQueue(accessToken);
-        // A poll may still be awaiting Spotify when the session gets paused
-        if (pollingPaused) return;
-        console.log("polling with wait: ", currTimeout);
-        queuePollingInterval = window.setTimeout(poll, currTimeout);
+        if (pollingPaused || generation !== pollGeneration) return;
+        let wait: number;
+        try {
+            wait = await refreshQueue(accessToken);
+            failedPolls = 0;
+        } catch (err) {
+            console.error("Failed to refresh queue:", err);
+            wait = nextPollDelay(failedPolls, err instanceof SpotifyApiError ? err.retryAfterMs : null);
+            failedPolls++;
+        }
+        // A poll may still be awaiting Spotify when the session gets paused or polling restarts
+        if (pollingPaused || generation !== pollGeneration) return;
+        console.log("polling with wait: ", wait);
+        queuePollingInterval = window.setTimeout(poll, wait);
     };
 
     poll();
@@ -127,52 +148,29 @@ export function resetTimeout(){
 }
 
 export function populateProfileImage(profile: UserProfile) {
-
-    const profileImg = document.getElementById("imgUrl") as HTMLImageElement | null;
-    if (profileImg && profile.images[0]) {
-        profileImg.src = profile.images[0].url;
-    }
-
-    // Optional: keep the URL displayed somewhere (if you still want it)
-    profileImg!.alt = profile.display_name ?? 'Spotify Profile';
+    updatePlaybackState({
+        profileImageUrl: profile.images[0]?.url ?? "",
+        profileName: profile.display_name ?? "",
+    });
 }
 
-async function displayTutorialQRCode(danceName: string): Promise<void> {
-    const qrContainer = document.getElementById('qrCodeContainer');
-    if (!qrContainer) return;
-
-
+async function displayTutorialQRCode(songName: string, trackId: string): Promise<void> {
     try {
-        const url = await getTutorialUrl(danceName);
-        if (!url) {
-          qrContainer.innerHTML = "";
-          return;
-        }
-
-        // Match CSS --tile-size so QR scales with short / odd viewports (e.g. TVs)
-        const tileSizePx = parseFloat(getComputedStyle(qrContainer).width);
-        const qr_code_resolution = Number.isFinite(tileSizePx) && tileSizePx > 0
-            ? Math.max(72, Math.round(tileSizePx))
-            : 180;
-
-        // Clear previous QR but keep the slot
-        qrContainer.innerHTML = "";
-        new QRCode(qrContainer, {
-            text: url,
-            width: qr_code_resolution,
-            height: qr_code_resolution,
-            colorDark: "#000000",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H
-        });
-
-        const nameSpan = document.createElement("span");
-        nameSpan.innerText = "Scan QR code to see video tutorial :)";
-        qrContainer.appendChild(nameSpan);
-        
+        const url = await getTutorialUrl(songName);
+        // A slow lookup must not overwrite the QR code of a newer track.
+        if (currentTrack?.id !== trackId) return;
+        updatePlaybackState({ tutorialUrl: url || null });
     } catch (err) {
         console.error("Error displaying tutorial URL:", err);
     }
+}
+
+function itemImageUrl(item: QueueItem): string {
+    return "album" in item ? item.album.images[0]?.url ?? "" : item.images[0]?.url ?? "";
+}
+
+function toTrackSummary(item: QueueItem): TrackSummary {
+    return { id: item.id, name: item.name, imageUrl: itemImageUrl(item) };
 }
 
 function getArtistName(item: QueueItem): string {
@@ -310,8 +308,7 @@ export async function populateQueue(fullQueue: FullQueue) {
     const songName = playing.name;
     const trackId = playing.id;
     const artistName = getArtistName(playing);
-
-    document.getElementById("songTitle")!.innerText = songName;
+    const imageUrl = itemImageUrl(playing);
 
     // Reset manual override when the track changes.
     if (currentTrack?.id !== trackId) {
@@ -320,8 +317,10 @@ export async function populateQueue(fullQueue: FullQueue) {
         if (stored && stored.trackId !== trackId) {
             clearManualDanceStorage();
         }
+        updatePlaybackState({ tutorialUrl: null });
     }
     currentTrack = { id: trackId, name: songName, artist: artistName };
+    updatePlaybackState({ songTitle: songName, albumArtUrl: imageUrl });
 
     const storedOverride = readManualDance();
     if (storedOverride?.trackId === trackId) {
@@ -332,31 +331,24 @@ export async function populateQueue(fullQueue: FullQueue) {
 
     // Skip auto-lookup when the user already named this track's dance.
     if (!manualDanceName) {
-        const wallsLookup = await fetchDanceFromWalls(songName);
+        const [wallsLookup, songMap] = await Promise.all([fetchDanceFromWalls(songName), getSongMap()]);
+        // A newer track's update owns the display now.
+        if (currentTrack?.id !== trackId) return;
         // Prefer walls.dance match; on error or null match, fall back to the built-in map.
+        // A dance set with Set Dance during the lookup still wins.
         danceName =
-            wallsLookup.ok && wallsLookup.danceName
-                ? wallsLookup.danceName
-                : songMap.get(songName);
+            manualDanceName ??
+            (wallsLookup.ok && wallsLookup.danceName ? wallsLookup.danceName : songMap.get(songName));
     }
 
-    if (!partnerDanceActive) {
-        setDanceTitleDisplay(danceName);
-    }
+    // Partner dance mode overrides what's displayed, so the real dance is kept for when it's toggled off.
+    setDanceTitleDisplay(danceName);
 
-    // Updating the current song album cover
-    loadCurrentlyPlayingAlbumCover((playing as unknown as TrackObject).album?.images[0]?.url ?? (playing as unknown as EpisodeObject).images[0]?.url ?? '');
+    displayNextSongs(fullQueue.queue);
+    void displayTutorialQRCode(songName, trackId);
 
-    // Loading the next three songs in the queue
-    const nextSongs: QueueItem[] = fullQueue.queue.slice(0, 3);
-    displayNextSongs(nextSongs, 3);
-    // if this is a partner dance: no line dance tutorial QR code to be shown
-    if (!partnerDanceActive){
-      displayTutorialQRCode(songName);
-    }
-
-    // Always log the play; include dance when resolved (API, local map, or Set Dance).
-    void logSongToWalls(songName, artistName, danceName);
+    // Include dance when resolved (API, local map, or Set Dance).
+    logPlayOnce(trackId, songName, artistName, danceName);
 }
 
 /*
@@ -381,70 +373,35 @@ async function getTutorialUrl(song_name: string){
     return null;
 }
 
-function loadCurrentlyPlayingAlbumCover(coverUrl: string | null) {
-    const image = document.getElementById("albumArt") as HTMLImageElement | null;
-    if (!image || !coverUrl) return;
-    image.src = coverUrl;
-    image.style.display = "block";
-    image.style.objectFit = "contain";
-    image.style.objectPosition = "center";
-}
-
-
-// @ts-ignore
+/** Returns how long to wait before the next poll. Throws when Spotify can't be reached. */
 export async function refreshQueue(accessToken: string): Promise<number> {
-    try {
-        const currentlyPlaying = await fetchCurrentlyPlaying(accessToken);
-        if (!currentlyPlaying) return defaultPollingRate;
+    const currentlyPlaying = await fetchCurrentlyPlaying(accessToken);
+    if (!currentlyPlaying?.item) return defaultPollingRate;
 
-        const currentTrackId = await currentlyPlaying.item.id;
+    const currentTrackId = currentlyPlaying.item.id;
 
-        // Only update queue if the track changed
-        if (currentTrackId !== lastTrackId) {
-
-            lastTrackId = currentTrackId;
-
-            const fullQueue = await fetchQueue(accessToken);
-
-            if (!fullQueue) return defaultPollingRate;
-            if ((window as any).resetDanceTitle) {
-                (window as any).resetDanceTitle();
-            }
-            await populateQueue(fullQueue);
-            // your function to show next 3 songs
-            displayNextSongs(fullQueue.queue, 3);
-            // Calculating the offset when to poll for the next song.
-            console.log("Time left in the song: ", currentlyPlaying.item.duration_ms - currentlyPlaying.progress_ms)
-
+    // Only update queue if the track changed
+    if (currentTrackId !== lastTrackId) {
+        const fullQueue = await fetchQueue(accessToken);
+        if ((window as any).resetDanceTitle) {
+            (window as any).resetDanceTitle();
         }
-        // Default polling for next song is 5 seconds
-        return Math.max(currentlyPlaying.item.duration_ms - currentlyPlaying.progress_ms, defaultPollingRate)
-    } catch (err) {
-        console.error("Failed to refresh queue:", err);
+        await populateQueue(fullQueue);
+        lastTrackId = currentTrackId;
+        // Calculating the offset when to poll for the next song.
+        console.log("Time left in the song: ", currentlyPlaying.item.duration_ms - currentlyPlaying.progress_ms)
     }
+    // Default polling for next song is 5 seconds
+    return Math.max(currentlyPlaying.item.duration_ms - currentlyPlaying.progress_ms, defaultPollingRate)
 }
 
-function displayNextSongs(queue: QueueItem[], n_songs: number) {
-    const container = document.getElementById("songsList");
-    if (!container) return;
+// Widgets choose how many to show (up to 10).
+function displayNextSongs(queue: QueueItem[]) {
+    updatePlaybackState({ upNext: queue.slice(0, 10).map(toTrackSummary) });
+}
 
-    container.innerHTML = "";  // clear previous content
-
-    // take next n_songs songs
-    queue.slice(0, n_songs).forEach(item => {
-        const div = document.createElement("div");
-        div.className = "songItem";
-
-        const img = document.createElement("img");
-        img.src = "album" in item ? item.album.images[0]?.url ?? "" : item.images[0]?.url ?? "";
-        img.alt = item.name;
-
-        const nameSpan = document.createElement("span");
-        nameSpan.innerText = item.name;
-
-        div.appendChild(img);
-        div.appendChild(nameSpan);
-        container.appendChild(div);
-    });
+/** For status messages like "No songs currently playing". */
+export function showSongTitleMessage(message: string) {
+    updatePlaybackState({ songTitle: message });
 }
 

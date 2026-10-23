@@ -1,12 +1,28 @@
-import type { BackgroundProject, BgElement, TextElement, MediaElement } from "../types/backgroundProject.ts";
+import {
+    WIDGET_INFO,
+    createEmptyProject,
+    isHexColor,
+    type BackgroundProject,
+    type BgElement,
+    type TextElement,
+    type MediaElement,
+    type WidgetElement,
+} from "../types/backgroundProject.ts";
 import { getActiveProject, getAsset } from "./projectStore.ts";
 import { ensureFontsLoaded } from "./fonts.ts";
+import { buildWidget, refreshWidgets } from "./widgets.ts";
+import { mountWidgetAnimations } from "./widgetAnimations.ts";
+import { isPopoutWindow } from "../windowLoaders/windowRole.ts";
 
 const objectUrls = new Map<string, string>();
 
-function revokeAllObjectUrls() {
-    for (const url of objectUrls.values()) URL.revokeObjectURL(url);
-    objectUrls.clear();
+/** Release cached object URLs for assets that were deleted from storage. */
+export function revokeAssetUrls(assetIds: Iterable<string>) {
+    for (const id of assetIds) {
+        const url = objectUrls.get(id);
+        if (url) URL.revokeObjectURL(url);
+        objectUrls.delete(id);
+    }
 }
 
 async function resolveAssetUrl(assetId: string): Promise<string | null> {
@@ -103,9 +119,24 @@ async function renderMediaElement(el: MediaElement): Promise<HTMLElement> {
     return wrapper;
 }
 
+function renderWidgetElement(el: WidgetElement, editable: boolean): HTMLElement {
+    const node = document.createElement("div");
+    applyBaseStyles(node, el);
+    buildWidget(node, el, editable);
+    if (editable) node.style.cursor = "move";
+    return node;
+}
+
 export async function renderElementNode(el: BgElement, editable: boolean): Promise<HTMLElement> {
     if (el.type === "text") return renderTextElement(el, editable);
+    if (el.type === "widget") return renderWidgetElement(el, editable);
     return renderMediaElement(el);
+}
+
+// Project files can be imported from anywhere; a free-form CSS background
+// would let one load external url() images.
+function safeCanvasFill(fill: string | undefined): string {
+    return isHexColor(fill) ? fill : "#000000";
 }
 
 export type SceneFitMode = "cover" | "contain";
@@ -135,38 +166,69 @@ function fitSceneToViewport(
     return apply;
 }
 
-let resizeHandler: (() => void) | null = null;
+// Keyed per container: the live background and the editor artboard render independently.
+const resizeHandlers = new WeakMap<HTMLElement, () => void>();
+const renderGenerations = new WeakMap<HTMLElement, number>();
+
+/** Invalidates any in-flight render into `container` and returns the new generation. */
+function nextGeneration(container: HTMLElement): number {
+    const generation = (renderGenerations.get(container) ?? 0) + 1;
+    renderGenerations.set(container, generation);
+    return generation;
+}
+
+function detachResizeHandler(container: HTMLElement) {
+    const handler = resizeHandlers.get(container);
+    if (handler) {
+        window.removeEventListener("resize", handler);
+        resizeHandlers.delete(container);
+    }
+}
+
+/** Re-fits a rendered scene after its container changed size without a window resize. */
+export function refitScene(container: HTMLElement): void {
+    resizeHandlers.get(container)?.();
+}
+
+export function clearScene(container: HTMLElement): void {
+    nextGeneration(container);
+    detachResizeHandler(container);
+    container.replaceChildren();
+}
 
 export type RenderSceneOptions = {
     container: HTMLElement;
     project: BackgroundProject;
     editable?: boolean;
     fit?: SceneFitMode;
+    /** Elements rejected here are not rendered. */
+    filter?: (el: BgElement) => boolean;
     onElementClick?: (id: string, event: MouseEvent) => void;
     onElementDblClick?: (id: string, event: MouseEvent) => void;
 };
 
-export async function renderScene(options: RenderSceneOptions): Promise<HTMLElement> {
+/** Resolves to null when a newer render into the same container superseded this one. */
+export async function renderScene(options: RenderSceneOptions): Promise<HTMLElement | null> {
     const {
         container,
         project,
         editable = false,
         fit = "cover",
+        filter,
         onElementClick,
         onElementDblClick,
     } = options;
 
-    if (resizeHandler) {
-        window.removeEventListener("resize", resizeHandler);
-        resizeHandler = null;
-    }
+    const generation = nextGeneration(container);
 
-    // Keep object URLs across re-renders of the same session; revoke only when clearing to empty.
-    container.innerHTML = "";
-
-    const fonts = project.elements
-        .filter((el): el is TextElement => el.type === "text")
-        .map((el) => el.fontFamily);
+    const elements = filter ? project.elements.filter(filter) : project.elements;
+    const fonts = elements.flatMap((el) =>
+        el.type === "text"
+            ? [el.fontFamily]
+            : el.type === "widget"
+              ? [el.fontFamily, el.danceFontFamily]
+              : []
+    );
     await ensureFontsLoaded(fonts.length ? fonts : undefined);
 
     const scene = document.createElement("div");
@@ -174,11 +236,11 @@ export async function renderScene(options: RenderSceneOptions): Promise<HTMLElem
     scene.style.position = "absolute";
     scene.style.left = "0";
     scene.style.top = "0";
-    scene.style.background = project.canvas.fill || "#000";
+    scene.style.background = safeCanvasFill(project.canvas.fill);
     scene.style.overflow = "hidden";
     scene.style.willChange = "transform";
 
-    const sorted = [...project.elements].sort((a, b) => a.zIndex - b.zIndex);
+    const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex);
     for (const el of sorted) {
         const node = await renderElementNode(el, editable);
         if (editable) {
@@ -196,11 +258,17 @@ export async function renderScene(options: RenderSceneOptions): Promise<HTMLElem
             });
         }
         scene.appendChild(node);
+        if (el.type === "widget") mountWidgetAnimations(node, el, editable);
     }
 
-    container.appendChild(scene);
+    if (renderGenerations.get(container) !== generation) return null;
+
+    detachResizeHandler(container);
+    container.replaceChildren(scene);
+    // Playback updates that arrived while media was loading only reached attached widgets.
+    refreshWidgets(scene);
     const applyFit = fitSceneToViewport(scene, project, container, fit);
-    resizeHandler = applyFit;
+    resizeHandlers.set(container, applyFit);
     window.addEventListener("resize", applyFit);
 
     return scene;
@@ -212,13 +280,41 @@ export async function renderActiveBackground(
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    const project = await getActiveProject();
-    if (!project) {
-        revokeAllObjectUrls();
-        container.innerHTML = "";
-        return;
+    const generation = nextGeneration(container);
+    let project: BackgroundProject;
+    try {
+        project = (await getActiveProject()) ?? getFallbackProject();
+    } catch (err) {
+        // Every control, including the way into the editor, lives in the project.
+        console.error("Couldn't load the saved background; showing the default layout:", err);
+        project = getFallbackProject();
     }
-    await renderScene({ container, project, editable: false });
+    if (renderGenerations.get(container) !== generation) return;
+    // Letterbox bars blend into the design instead of showing a different color.
+    container.style.background = safeCanvasFill(project.canvas.fill);
+    await renderScene({
+        container,
+        project,
+        editable: false,
+        // Contain keeps widgets near the edges on screen; the live page matches the editor exactly.
+        fit: "contain",
+        filter: isVisibleInThisWindow,
+    });
+}
+
+let fallbackProject: BackgroundProject | null = null;
+
+/** Default layout shown until the user saves a project of their own. */
+function getFallbackProject(): BackgroundProject {
+    fallbackProject ??= createEmptyProject("Default");
+    return fallbackProject;
+}
+
+function isVisibleInThisWindow(el: BgElement): boolean {
+    if (el.type !== "widget") return true;
+    const showIn = WIDGET_INFO[el.widget].mainOnly ? "main" : el.showIn;
+    if (showIn === "both") return true;
+    return (showIn === "popout") === isPopoutWindow();
 }
 
 export function findElementNode(container: HTMLElement, id: string): HTMLElement | null {

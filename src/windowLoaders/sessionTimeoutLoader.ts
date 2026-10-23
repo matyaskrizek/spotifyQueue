@@ -90,5 +90,7 @@ function resumeWithToken(token: string) {
 }
 
 function getBackgroundVideos(): NodeListOf<HTMLVideoElement> {
-    return document.querySelectorAll<HTMLVideoElement>("#backgroundContainer video");
+    return document.querySelectorAll<HTMLVideoElement>(
+        "#backgroundContainer video, #bgEditorArtboard video"
+    );
 }

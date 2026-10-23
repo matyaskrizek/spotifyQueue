@@ -1,26 +1,25 @@
 import {redirectToAuthCodeFlow, getUserAccessToken, refreshAccessToken, getCookie, setCookie, deleteCookie, getRedirectUri} from "./Spotify/authCodeWithPkce.ts";
-import {populateProfileImage, populateQueue, startQueuePolling} from "./windowLoaders/queueElementsLoader.ts"
+import {populateProfileImage, populateQueue, showSongTitleMessage, startQueuePolling} from "./windowLoaders/queueElementsLoader.ts"
 import {fetchQueue, fetchProfile} from "./services/spotifyService.ts"
 import {
-    openPopout,
-    toggleFullscreen,
     setupWindowControls,
-    initFullscreenButton, setupPartnerDanceButton, setupBackground, initHideQueueButton,
-    initRefreshButton, setupSetDanceButton
+    setupBackground,
+    setupControlActions,
+    setupSetDanceForm,
+    isPopoutWindow
 } from "./windowLoaders/pop-outWindowLoader.ts";
 import { setupBackgroundEditor } from "./backgroundEditor/editorController.ts";
 import {initSessionTimeout} from "./windowLoaders/sessionTimeoutLoader.ts";
 
 
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
-const currentlyPlayingSection = document.querySelector(".currentlyPlaying") as HTMLElement;
 
+// Shown outside the user's project: login failures happen before it can render.
 function showAuthError(message: string) {
-    currentlyPlayingSection.style.display = "flex";
-    const title = document.getElementById("songTitle");
-    if (title) {
-        title.innerText = message;
-        title.style.visibility = "visible";
+    const status = document.getElementById("statusMessage");
+    if (status) {
+        status.textContent = message;
+        status.hidden = false;
     }
     console.error(message);
 }
@@ -37,10 +36,6 @@ async function init() {
     // (that creates an authorize-page loop).
     if (code) {
         try {
-            console.log("Exchanging code for new access token...", {
-                redirectUri: getRedirectUri(),
-                hasVerifier: !!localStorage.getItem("verifier"),
-            });
             accessToken = await getUserAccessToken(clientId, code);
         } catch (err) {
             console.error("Code exchange failed:", err);
@@ -90,13 +85,11 @@ async function init() {
             // No token and not on an OAuth callback → start auth once
             if (!accessToken) {
                 console.log("Redirecting to Spotify");
-                currentlyPlayingSection.style.display = "none";
                 await redirectToAuthCodeFlow(clientId);
                 return;
             }
         }
 
-        currentlyPlayingSection.style.display = "flex";
         setupSiteContentAndButtons();
         const profile = await fetchProfile(accessToken);
         populateProfileImage(profile);
@@ -111,43 +104,28 @@ async function init() {
 }
 
 function setupSiteContentAndButtons() {
-    console.log("Setting up background");
-    void setupBackground();
     console.log("Setting up window controls");
     setupWindowControls();
-    if (!window.opener) {
+    console.log("Setting up background");
+    setupBackground().catch((err) => console.error("Failed to render background:", err));
+    if (!isPopoutWindow()) {
         setupBackgroundEditor();
-        document.getElementById("openPopoutBtn")?.addEventListener("click", openPopout);
     }
-    document.getElementById("fullscreenBtn")?.addEventListener("click", toggleFullscreen);
-    initFullscreenButton("fullscreenBtn");
-    setupPartnerDanceButton();
-    initHideQueueButton();
-    initRefreshButton();
-    setupSetDanceButton();
+    setupControlActions();
+    setupSetDanceForm();
 }
 
 async function pollQueueLoop(accessToken:string){
     try {
         const fullQueue = await fetchQueue(accessToken);
-        if (fullQueue) await populateQueue(fullQueue);
-        // Starting the constant queue refresh
-        startQueuePolling(accessToken);
+        await populateQueue(fullQueue);
     } catch (e) {
-        const ErrorMessage = document.getElementById("songTitle")
-        if(ErrorMessage){
-            ErrorMessage.innerText = "No songs currently Playing";
-            ErrorMessage.style.visibility = "visible";
-        }
-        sleep(500);
-        pollQueueLoop(accessToken);
+        console.error("Failed to load queue:", e);
+        showSongTitleMessage("No songs currently Playing");
     }
-
+    // The constant queue refresh retries failures with exponential backoff.
+    startQueuePolling(accessToken);
 }
-
-const sleep = (ms: number) => {
-    return new Promise(resolve => setTimeout(resolve, ms));
-};
 
 
 init();
