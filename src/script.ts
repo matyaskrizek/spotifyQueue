@@ -1,19 +1,28 @@
-
-import {redirectToAuthCodeFlow, getUserAccessToken, refreshAccessToken, getCookie, setCookie, deleteCookie} from "./Spotify/authCodeWithPkce.ts";
-import {populateProfileImage, populateQueue, startQueuePolling} from "./windowLoaders/queueElementsLoader.ts"
+import {redirectToAuthCodeFlow, getUserAccessToken, refreshAccessToken, getCookie, setCookie, deleteCookie, getRedirectUri} from "./Spotify/authCodeWithPkce.ts";
+import {populateProfileImage, populateQueue, showSongTitleMessage, startQueuePolling} from "./windowLoaders/queueElementsLoader.ts"
 import {fetchQueue, fetchProfile} from "./services/spotifyService.ts"
 import {
-    openPopout,
-    toggleFullscreen,
     setupWindowControls,
-    initFullscreenButton, setupPartnerDanceButton, setupBackgroundUploadButton, setupBackground, initHideQueueButton,
-    initRefreshButton
+    setupBackground,
+    setupControlActions,
+    setupSetDanceForm,
+    isPopoutWindow
 } from "./windowLoaders/pop-outWindowLoader.ts";
+import { setupBackgroundEditor } from "./backgroundEditor/editorController.ts";
 import {initSessionTimeout} from "./windowLoaders/sessionTimeoutLoader.ts";
 
 
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
-const currentlyPlayingSection = document.querySelector(".currentlyPlaying") as HTMLElement;
+
+// Shown outside the user's project: login failures happen before it can render.
+function showAuthError(message: string) {
+    const status = document.getElementById("statusMessage");
+    if (status) {
+        status.textContent = message;
+        status.hidden = false;
+    }
+    console.error(message);
+}
 
 // ---------------- Main Initialization ----------------
 async function init() {
@@ -22,48 +31,50 @@ async function init() {
     const maxRetries = 3;
     let accessToken: string | null = null;
     let refreshToken: string | null = null;
+
+    // OAuth callback: exchange once. Never bounce back to Spotify on failure
+    // (that creates an authorize-page loop).
     if (code) {
         try {
-            console.log("Exchanging code for new access token...");
             accessToken = await getUserAccessToken(clientId, code);
         } catch (err) {
-            console.error("Code exchange failed, redirecting:", err);
-            await redirectToAuthCodeFlow(clientId);
+            console.error("Code exchange failed:", err);
+            showAuthError(
+                "Spotify login failed. Open the app at the same host/port you use to log in " +
+                `(expected redirect: ${getRedirectUri()}), then try Connect again from the landing page.`
+            );
             return;
         }
     }
 
     // Retrieve tokens from cookies
     const tokenExpiry = Number(getCookie("spotifyTokenExpiryForMyApp") || "0");
-    if(!accessToken) accessToken = getCookie("spotifyAccessTokenForMyApp") || null;
-    if(!refreshToken) refreshToken = getCookie("spotifyRefreshTokenForMyApp") || null;
+    if (!accessToken) accessToken = getCookie("spotifyAccessTokenForMyApp") || null;
+    if (!refreshToken) refreshToken = getCookie("spotifyRefreshTokenForMyApp") || null;
     let retries: number = Number(getCookie("spotifyRetries") || "0");
 
     // I hate you typescript. Only you would infer that the return type 'undefined'
     // would be a string and not actually undefined smh 🤦‍♂️
-    if(accessToken == "undefined"){
+    if (accessToken == "undefined") {
         accessToken = null;
     }
-    if(refreshToken == "undefined"){
+    if (refreshToken == "undefined") {
         refreshToken = null;
     }
 
     try {
         // Only retry locally if token missing or expired, up to maxRetries
         if (!accessToken || Date.now() > tokenExpiry) {
-
             console.log("NO ACCESS TOKEN OR EXPIRED TOKEN");
             if (refreshToken && retries < maxRetries) {
-
                 console.log("Trying to refresh token");
                 try {
                     accessToken = await refreshAccessToken(clientId);
-                    setCookie("spotifyAccessToken", accessToken, 1); // persist new access token
-                    setCookie("spotifyRetries", "0", 1); // reset retries
+                    setCookie("spotifyRetries", "0", 1);
                 } catch (err) {
                     console.warn("Refresh token failed:", err);
-                    deleteCookie("spotifyAccessToken");
-                    deleteCookie("spotifyRefreshToken");
+                    deleteCookie("spotifyAccessTokenForMyApp");
+                    deleteCookie("spotifyRefreshTokenForMyApp");
                     retries++;
                     setCookie("spotifyRetries", retries.toString(), 1);
                     accessToken = null;
@@ -71,92 +82,50 @@ async function init() {
                 }
             }
 
-            // Try authorization code flow if refresh token fails
-            if (!accessToken && code) {
-                console.log("Trying to get new token");
-                try {
-                    accessToken = await getUserAccessToken(clientId, code);
-                    setCookie("spotifyAccessToken", accessToken, 1);
-                    setCookie("spotifyRetries", "0", 1); // reset retries
-                } catch (err) {
-                    console.warn("Code exchange failed:", err);
-                    deleteCookie("spotifyAccessToken");
-                    deleteCookie("spotifyRefreshToken");
-                    accessToken = null;
-                    refreshToken = null;
-                }
-            }
-            // If still no token after retries → single redirect
-            if(!accessToken) {
+            // No token and not on an OAuth callback → start auth once
+            if (!accessToken) {
                 console.log("Redirecting to Spotify");
-                currentlyPlayingSection.style.display = "none";
                 await redirectToAuthCodeFlow(clientId);
                 return;
             }
         }
-        currentlyPlayingSection.style.display = "flex";
-        // Setting up all the Button logic and controls
+
         setupSiteContentAndButtons();
-        // Getting the user profile and image to display
         const profile = await fetchProfile(accessToken);
         populateProfileImage(profile);
-        // Fetching the queue
         pollQueueLoop(accessToken);
         // Pause polling/visuals after 5 hours until the user refreshes the session
         initSessionTimeout();
-
     } catch (err) {
-        console.error("Initialization failed, redirecting:", err);
-        await redirectToAuthCodeFlow(clientId);
+        // Do not re-enter the Spotify authorize flow on app errors — that loops the consent page.
+        console.error("Initialization failed:", err);
+        showAuthError("Failed to load Spotify session. Check the console, then try logging in again from the landing page.");
     }
 }
 
 function setupSiteContentAndButtons() {
-    console.log("Setting up background")
-    //Setting up the background
-    setupBackground();
-    console.log("Setting up window controls")
-    // Call this once when the app starts
+    console.log("Setting up window controls");
     setupWindowControls();
-    if(!window.opener) {
-        // Upload Background image logic
-        setupBackgroundUploadButton();
-
-        // Hook buttons
-        document.getElementById("openPopoutBtn")?.addEventListener("click", openPopout);
+    console.log("Setting up background");
+    setupBackground().catch((err) => console.error("Failed to render background:", err));
+    if (!isPopoutWindow()) {
+        setupBackgroundEditor();
     }
-    document.getElementById("fullscreenBtn")?.addEventListener("click", toggleFullscreen);
-    // Disappearing logic on the fullscreen button
-    initFullscreenButton("fullscreenBtn");
-    // Partner Dance Button Logic
-    setupPartnerDanceButton();
-    // Hide Queue logic
-    initHideQueueButton();
-    // Setup refresh Button
-    initRefreshButton();
+    setupControlActions();
+    setupSetDanceForm();
 }
 
 async function pollQueueLoop(accessToken:string){
     try {
         const fullQueue = await fetchQueue(accessToken);
-        if (fullQueue) await populateQueue(fullQueue);
-        // Starting the constant queue refresh
-        startQueuePolling(accessToken);
+        await populateQueue(fullQueue);
     } catch (e) {
-        const ErrorMessage = document.getElementById("songTitle")
-        if(ErrorMessage){
-            ErrorMessage.innerText = "No songs currently Playing";
-            ErrorMessage.style.visibility = "visible";
-        }
-        sleep(500);
-        pollQueueLoop(accessToken);
+        console.error("Failed to load queue:", e);
+        showSongTitleMessage("No songs currently Playing");
     }
-
+    // The constant queue refresh retries failures with exponential backoff.
+    startQueuePolling(accessToken);
 }
-
-const sleep = (ms: number) => {
-    return new Promise(resolve => setTimeout(resolve, ms));
-};
 
 
 init();

@@ -1,9 +1,15 @@
 const PRODUCTION_REDIRECT_URI =
     "https://matyaskrizek.github.io/spotifyQueue/queue.html";
+const FORCE_DIALOG_KEY = "spotifyForceDialog";
+/** Written on logout so other windows of the app follow. */
+export const LOGGED_OUT_KEY = "loggedOutAt";
 
-// Must match a Spotify Dashboard Redirect URI exactly (localhost ≠ 127.0.0.1).
-// In development, follow the origin you actually opened (Vite may not be on 5173).
-function getRedirectUri(): string {
+/**
+ * Must match a Spotify Dashboard Redirect URI exactly.
+ * In development, use the current origin so the PKCE verifier in localStorage
+ * is available on the callback page (localhost ≠ 127.0.0.1, and port must match).
+ */
+export function getRedirectUri(): string {
     if (import.meta.env.PROD) {
         return PRODUCTION_REDIRECT_URI;
     }
@@ -11,10 +17,18 @@ function getRedirectUri(): string {
     if (override) {
         return override;
     }
-    return new URL("queue.html", `${window.location.origin}${import.meta.env.BASE_URL}`).href;
+    const base = import.meta.env.BASE_URL.endsWith("/")
+        ? import.meta.env.BASE_URL
+        : `${import.meta.env.BASE_URL}/`;
+    return `${window.location.origin}${base}queue.html`;
 }
 
 export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
+    if (!clientId) {
+        console.error("Missing VITE_SPOTIFY_CLIENT_ID; cannot start Spotify auth");
+        return;
+    }
+
     const verifier = generateCodeVerifier(128);
     const challenge = await generateCodeChallenge(verifier);
     const redirectUri = getRedirectUri();
@@ -37,15 +51,16 @@ export async function redirectToAuthCodeFlow(clientId: string): Promise<void> {
     params.append("scope", scope);
     params.append("code_challenge_method", "S256");
     params.append("code_challenge", challenge);
-    // exactly the registered URI
     params.append("state", "from=spotify");
+    // After a logout, make Spotify ask instead of silently reusing its signed-in account.
+    if (localStorage.getItem(FORCE_DIALOG_KEY)) params.append("show_dialog", "true");
 
     document.location = `https://accounts.spotify.com/authorize?${params.toString()}`;
 }
 
 function generateCodeVerifier(length: number) {
     let text = '';
-    let possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
     for (let i = 0; i < length; i++) {
         text += possible.charAt(Math.floor(Math.random() * possible.length));
@@ -66,12 +81,19 @@ export async function getUserAccessToken(clientId: string, code: string): Promis
     const verifier = localStorage.getItem("verifier");
     const redirectUri = getRedirectUri();
 
+    if (!verifier) {
+        throw new Error(
+            "Missing PKCE verifier in localStorage. Start login from the same origin you return to " +
+            `(expected callback: ${redirectUri}).`
+        );
+    }
+
     const params = new URLSearchParams();
     params.append("client_id", clientId);
     params.append("grant_type", "authorization_code");
     params.append("code", code);
     params.append("redirect_uri", redirectUri);
-    params.append("code_verifier", verifier!);
+    params.append("code_verifier", verifier);
 
     const result = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
@@ -80,11 +102,19 @@ export async function getUserAccessToken(clientId: string, code: string): Promis
     });
     const data = await result.json();
 
-    saveAccessAndRefreshToken(data.access_token, data.refresh_token, data.expires_in);
+    if (!result.ok || !data.access_token) {
+        throw new Error(
+            `Spotify token exchange failed (${result.status}): ${data.error || "unknown"}` +
+            (data.error_description ? ` — ${data.error_description}` : "")
+        );
+    }
 
+    saveAccessAndRefreshToken(data.access_token, data.refresh_token, data.expires_in);
+    localStorage.removeItem("verifier");
+    localStorage.removeItem(FORCE_DIALOG_KEY);
     window.history.replaceState({}, document.title, new URL(redirectUri).pathname);
 
-    return data.access_token;
+    return data.access_token as string;
 }
 
 // src/spotifyApi.ts
@@ -122,9 +152,12 @@ export async function refreshAccessToken(clientId: string): Promise<string> {
         body: params
     });
 
-    const data = await result.json();
+    const data = await result.json().catch(() => ({}));
+    if (!result.ok || !data.access_token) {
+        throw new Error(`Token refresh failed: ${result.status} ${data.error ?? result.statusText}`);
+    }
     saveAccessAndRefreshToken(data.access_token, data.refresh_token, data.expires_in);
-    return data.access_token;
+    return data.access_token as string;
 }
 
 function saveAccessAndRefreshToken(accessToken: string, refreshToken: string, expiresIn: number) {
@@ -148,11 +181,39 @@ export function getCookie(name: string): string | null {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) {
-        return parts.pop()?.split(";").shift() || null;
+        const raw = parts.pop()?.split(";").shift();
+        return raw ? decodeURIComponent(raw) : null;
     }
     return null;
 }
 
 export function deleteCookie(name: string) {
     document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+}
+
+export function clearStoredSession() {
+    for (const key of ["access_token", "refresh_token", "verifier"]) localStorage.removeItem(key);
+    for (const name of [
+        "spotifyAccessTokenForMyApp",
+        "spotifyRefreshTokenForMyApp",
+        "spotifyTokenExpiryForMyApp",
+        "spotifyRetries",
+    ]) {
+        deleteCookie(name);
+    }
+}
+
+export function redirectToLandingPage() {
+    window.location.replace(import.meta.env.BASE_URL);
+}
+
+/**
+ * Clears this app's tokens only; Spotify itself stays signed in, so the next
+ * login shows Spotify's consent screen (with "Not you?") instead of skipping it.
+ */
+export function logoutOfSpotify(onDone: () => void = redirectToLandingPage) {
+    clearStoredSession();
+    localStorage.setItem(FORCE_DIALOG_KEY, "true");
+    localStorage.setItem(LOGGED_OUT_KEY, Date.now().toString());
+    onDone();
 }

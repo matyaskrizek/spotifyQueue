@@ -4,51 +4,197 @@
     <meta charset="utf-8">
     <title>My Spotify Profile</title>
     <script src="src/script.ts" type="module"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+            integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <link rel="stylesheet" href="src/css/queue.css">
+    <link rel="stylesheet" href="src/css/backgroundEditor.css">
+    <link rel="stylesheet" href="src/css/widgetAnimations.css">
 
 </head>
 <body>
 
-<!-- Left sidebar -->
-<aside class="leftSidebar"></aside>
+<!-- The user's project, widgets and control buttons included. Nothing else is drawn on top. -->
+<div id="backgroundContainer"></div>
 
-<a id="profile" href="https://accounts.spotify.com/login">
-    <img id="imgUrl" src="public/default-avatar.png" alt="Spotify Profile" />
-</a>
+<p id="statusMessage" hidden></p>
 
-<!-- Background elements (always behind everything) -->
-<div id="backgroundContainer">
-    <video autoplay muted loop playsinline id="bgVideo">
-        <source src="/background.mp4" type="video/mp4">
-    </video>
-    <img id="bgImage" src="/RedBlackWhiteBoldHorseAlbumCover.png" alt="Background Image" />
+<!-- Popovers anchored to whichever widget opened them -->
+<div id="bgSettingsMenu" class="popover-menu" hidden>
+    <p class="bg-settings-title">Background</p>
+    <div class="bg-settings-actions">
+        <button type="button" id="bgSettingsEditBtn" class="action-btn">Edit Background</button>
+        <button type="button" id="bgSettingsNewBtn" class="action-btn secondary">New Project</button>
+        <button type="button" id="bgSettingsImportBtn" class="action-btn secondary">Import Project</button>
+    </div>
+    <p class="bg-settings-title">Saved projects</p>
+    <div id="bgSettingsProjectList"></div>
 </div>
 
-<!-- Currently Playing Section (hidden initially) -->
-<div class="currentlyPlaying" style="display:none;">
-    <img id="albumArt" src="" alt="Album Art">
-    <h1 id="songTitle">Song Title</h1>
-    <h1 id="danceTitle">Dance Title</h1>
-</div>
+<form id="setDanceForm" class="set-dance-form" hidden>
+    <input id="danceNameInput" type="text" placeholder="Dance name" autocomplete="off" />
+    <button type="submit" id="danceNameSubmit" class="action-btn">Save</button>
+</form>
 
-<div id="upNextColumn">
-    <div id="songsList"></div>
-    <div id="qrCodeContainer" class="songItem"></div>
-</div>
+<input type="file" id="bgProjectImportInput" accept=".zip,application/zip" hidden />
+<input type="file" id="bgMediaImageInput" accept="image/*,.gif" hidden />
+<input type="file" id="bgMediaVideoInput" accept="video/*,image/gif,.gif" hidden />
+<input type="file" id="bgMediaReplaceInput" accept="image/*,video/*,.gif" hidden />
 
-<!-- Fullscreen Button -->
-<button id="fullscreenBtn" class="action-btn fullscreen-btn">
-    <span class="icon">⛶</span> Fullscreen
-</button>
-
-<div id="bottomButtons">
-    <input type="file" id="bgUploadInput" accept="image/*" style="display: none;" />
-    <button id="openPopoutBtn" class="action-btn">Pop-out</button>
-    <button id="partnerDanceBtn" class="action-btn">Partner Dance</button>
-    <button id="uploadBgBtn" class="action-btn">Upload Background</button>
-    <button id="hideQueueBtn" class="action-btn">Hide Queue</button>
-    <button id="togglePollingBtn" class="action-btn">Refresh</button>
+<!-- Background editor (main window only) -->
+<div id="bgEditorOverlay" hidden>
+    <div class="bg-editor-topbar">
+        <input id="bgProjectName" type="text" placeholder="Project name" />
+        <span id="bgEditorDirty" class="bg-editor-dirty" hidden>Unsaved</span>
+        <span id="bgEditorMediaStatus" class="bg-editor-media-status" hidden>Optimizing media…</span>
+        <button type="button" id="bgEditorSaveBtn" class="action-btn primary">Save</button>
+        <button type="button" id="bgEditorExportBtn" class="action-btn">Export</button>
+        <button type="button" id="bgEditorImportBtn" class="action-btn">Import</button>
+        <button type="button" id="bgEditorClearBtn" class="action-btn">Clear</button>
+        <button type="button" id="bgEditorCancelBtn" class="action-btn">Cancel</button>
+        <button type="button" id="bgEditorCloseBtn" class="action-btn primary">Done</button>
+    </div>
+    <div class="bg-editor-body">
+        <aside class="bg-editor-toolbar">
+            <button type="button" id="bgAddTextBtn">Text</button>
+            <button type="button" id="bgAddImageBtn">Image</button>
+            <button type="button" id="bgAddVideoBtn">Video / GIF</button>
+            <button type="button" id="bgAddWidgetBtn" aria-haspopup="menu">Widget ▸</button>
+            <button type="button" id="bgDeleteBtn">Delete</button>
+            <button type="button" id="bgForwardBtn">Forward</button>
+            <button type="button" id="bgBackBtn">Back</button>
+            <button type="button" id="bgUndoBtn">Undo</button>
+            <button type="button" id="bgRedoBtn">Redo</button>
+        </aside>
+        <div class="bg-editor-canvas-wrap">
+            <div id="bgEditorArtboard"></div>
+            <div id="bgWidgetMenu" role="menu" hidden></div>
+        </div>
+        <aside class="bg-editor-inspector">
+            <h3>Inspector</h3>
+            <div id="bgInspectorEmpty">
+                <p class="bg-inspector-hint">Select an element to edit its properties.</p>
+                <label>Canvas color <input id="bgInCanvasFill" type="color" /></label>
+            </div>
+            <div id="bgInspectorCommon" hidden>
+                <div class="bg-inspector-row">
+                    <label>X <input id="bgInX" type="number" /></label>
+                    <label>Y <input id="bgInY" type="number" /></label>
+                </div>
+                <div class="bg-inspector-row">
+                    <label>W <input id="bgInW" type="number" /></label>
+                    <label>H <input id="bgInH" type="number" /></label>
+                </div>
+                <div class="bg-inspector-row">
+                    <label>Rotate <input id="bgInRot" type="number" /></label>
+                    <label>Opacity <input id="bgInOpacity" type="number" min="0" max="1" step="0.05" /></label>
+                </div>
+            </div>
+            <div id="bgInspectorWidget" hidden>
+                <p id="bgInWidgetName" class="bg-inspector-kind"></p>
+                <p id="bgInWidgetHint" class="bg-inspector-hint" hidden></p>
+                <label data-wgroup="label"><span id="bgInLabelCaption">Label</span> <input id="bgInLabel" type="text" /></label>
+                <div data-wgroup="background" class="bg-inspector-row">
+                    <label>Background <input id="bgInWBackground" type="color" /></label>
+                    <label class="bg-inspector-check"><input id="bgInWNoBackground" type="checkbox" /> None</label>
+                </div>
+                <label data-wgroup="radius">Corner radius <input id="bgInWRadius" type="number" min="0" /></label>
+                <div data-wgroup="nowPlaying">
+                    <label class="bg-inspector-check"><input id="bgInWShowArt" type="checkbox" /> Album art</label>
+                    <label class="bg-inspector-check"><input id="bgInWShowSong" type="checkbox" /> Song title</label>
+                    <label class="bg-inspector-check"><input id="bgInWShowDance" type="checkbox" /> Dance title</label>
+                </div>
+                <div class="bg-inspector-row">
+                    <label data-wgroup="count">Songs <input id="bgInWCount" type="number" min="1" max="10" /></label>
+                    <label data-wgroup="layout">Layout
+                        <select id="bgInWLayout">
+                            <option value="auto">Auto (follow shape)</option>
+                            <option value="vertical">Vertical</option>
+                            <option value="horizontal">Horizontal</option>
+                        </select>
+                    </label>
+                </div>
+                <label data-wgroup="textPosition">Text position
+                    <select id="bgInWTextPosition">
+                        <option value="auto">Auto (follow shape)</option>
+                        <option value="below">Below art</option>
+                        <option value="above">Above art</option>
+                        <option value="left">Left of art</option>
+                        <option value="right">Right of art</option>
+                    </select>
+                </label>
+                <div data-wgroup="visibility">
+                    <label>Show in
+                        <select id="bgInWShowIn">
+                            <option value="main">Main window</option>
+                            <option value="popout">Pop-out</option>
+                            <option value="both">Both</option>
+                        </select>
+                    </label>
+                    <label class="bg-inspector-check"><input id="bgInWAutoHide" type="checkbox" /> Hide until the mouse moves</label>
+                </div>
+                <p class="bg-inspector-subheading">Animations</p>
+                <div id="bgInWAnimations" class="bg-anim-inspector"></div>
+            </div>
+            <div id="bgInspectorText" hidden>
+                <p id="bgInTextHeading" class="bg-inspector-subheading" hidden>Song title</p>
+                <label id="bgInTextRow">Text <textarea id="bgInText"></textarea></label>
+                <label>Font <select id="bgInFont"></select></label>
+                <div class="bg-inspector-row">
+                    <label>Size <input id="bgInFontSize" type="number" min="8" /></label>
+                    <label>Weight
+                        <select id="bgInWeight">
+                            <option value="400">Regular</option>
+                            <option value="700">Bold</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="bg-inspector-row">
+                    <label>Color <input id="bgInColor" type="color" /></label>
+                    <label id="bgInAlignRow">Align
+                        <select id="bgInAlign">
+                            <option value="left">Left</option>
+                            <option value="center">Center</option>
+                            <option value="right">Right</option>
+                        </select>
+                    </label>
+                </div>
+                <label class="bg-inspector-check">
+                    <input id="bgInItalic" type="checkbox" /> Italic
+                </label>
+                <label id="bgInShadowRow" class="bg-inspector-check">
+                    <input id="bgInShadow" type="checkbox" /> Text shadow
+                </label>
+            </div>
+            <div id="bgInspectorDanceText" hidden>
+                <p class="bg-inspector-subheading">Dance title</p>
+                <label>Font <select id="bgInDanceFont"></select></label>
+                <div class="bg-inspector-row">
+                    <label>Size <input id="bgInDanceFontSize" type="number" min="8" /></label>
+                    <label>Weight
+                        <select id="bgInDanceWeight">
+                            <option value="400">Regular</option>
+                            <option value="700">Bold</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="bg-inspector-row">
+                    <label>Color <input id="bgInDanceColor" type="color" /></label>
+                    <label class="bg-inspector-check"><input id="bgInDanceItalic" type="checkbox" /> Italic</label>
+                </div>
+            </div>
+            <div id="bgInspectorMedia" hidden>
+                <label>Fit
+                    <select id="bgInObjectFit">
+                        <option value="cover">Cover</option>
+                        <option value="contain">Contain</option>
+                        <option value="fill">Fill</option>
+                    </select>
+                </label>
+                <button type="button" id="bgInReplaceMedia" class="action-btn bg-inspector-btn">Replace file</button>
+            </div>
+        </aside>
+    </div>
 </div>
 
 <!-- Shown after 5 hours to stop background polling until the user returns -->
@@ -61,4 +207,3 @@
 
 </body>
 </html>
-

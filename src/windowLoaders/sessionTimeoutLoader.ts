@@ -42,7 +42,7 @@ function pauseSession(broadcast: boolean) {
     if (sessionPaused) return;
     sessionPaused = true;
     stopQueuePolling();
-    (document.getElementById("bgVideo") as HTMLVideoElement | null)?.pause();
+    getBackgroundVideos().forEach((video) => video.pause());
     document.getElementById("sessionOverlay")?.removeAttribute("hidden");
     if (broadcast) localStorage.setItem(PAUSED_KEY, Date.now().toString());
 }
@@ -83,9 +83,14 @@ function resumeWithToken(token: string) {
     }
     document.getElementById("sessionOverlay")?.setAttribute("hidden", "");
 
-    const bgVideo = document.getElementById("bgVideo") as HTMLVideoElement | null;
-    if (bgVideo && bgVideo.style.display !== "none") {
-        bgVideo.play().catch(() => {});
-    }
+    getBackgroundVideos().forEach((video) => {
+        video.play().catch(() => {});
+    });
     startQueuePolling(token);
+}
+
+function getBackgroundVideos(): NodeListOf<HTMLVideoElement> {
+    return document.querySelectorAll<HTMLVideoElement>(
+        "#backgroundContainer video, #bgEditorArtboard video"
+    );
 }

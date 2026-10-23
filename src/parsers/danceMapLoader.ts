@@ -5,23 +5,27 @@ export async function loadSongDanceMap(fileUrl: string): Promise<Map<string, str
 
         if (!response.ok) throw new Error(`Failed to fetch ${fileUrl}: ${response.statusText}`);
 
-        const text = await response.text();
-        const map = new Map<string, string>();
-
-        // Split lines and parse each as CSV
-        const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
-        for (const line of lines) {
-            const [songName, danceName] = parseCSVLine(line);
-            if (songName && danceName) {
-                map.set(songName, danceName);
-            }
-        }
-
-        return map;
+        return parseSongDanceMap(await response.text());
     } catch (err) {
         console.error("Error loading LineDanceMasterList", err);
         return new Map<string, string>()
     }
+}
+
+/** Parses "song,dance" lines (values may be quoted to contain commas) into a song → dance map. */
+export function parseSongDanceMap(text: string): Map<string, string> {
+    const map = new Map<string, string>();
+
+    // Split lines and parse each as CSV
+    const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+    for (const line of lines) {
+        const [songName, danceName] = parseCSVLine(line);
+        if (songName && danceName) {
+            map.set(songName, danceName);
+        }
+    }
+
+    return map;
 }
 
 // CSV line parser: handles quoted values with commas

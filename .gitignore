@@ -10,9 +10,17 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-e2e
+test-results
 *.local
 .wrangler
 .dev.vars
+
+# Agent skills (only the MR review skill is shared)
+.cursor/skills/*
+!.cursor/skills/merge-request-review/
+.claude/skills
+.cursor/plans
 
 # Editor directories and files
 .vscode/*

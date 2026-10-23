@@ -5,12 +5,6 @@
     background-color: #242424;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-
-    /* 3 song tiles + QR + labels must fit in the viewport height */
-    --tile-size: clamp(72px, calc((100vh - 9rem) / 4), 180px);
-    --tile-size: clamp(72px, calc((100dvh - 9rem) / 4), 180px);
-    --sidebar-width: calc(var(--tile-size) + 2.5rem);
-    --song-label-size: clamp(0.7rem, 1.8vh, 1.1rem);
 }
 
 /* ---------- Global Layout ---------- */
@@ -18,15 +12,13 @@ body {
     margin: 0;
     min-height: 100vh;
     min-height: 100dvh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    display: block;
     overflow: hidden;
     background: #000;
     color: white;
 }
 
-/* ---------- Fixed Background Layer ---------- */
+/* ---------- The user's project (widgets and controls live inside it) ---------- */
 #backgroundContainer {
     position: fixed;
     inset: 0;
@@ -34,172 +26,30 @@ body {
     overflow: hidden;
 }
 
-#backgroundContainer video,
-#backgroundContainer img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: brightness(0.7);
-}
-
-/* ---------- Profile Icon ---------- */
-#profile {
+#statusMessage {
     position: fixed;
-    top: 1rem;
-    right: 1rem;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    z-index: 5;
-}
-
-#profile img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
-    transition: transform 0.2s ease;
-    cursor: pointer;
-}
-
-#profile img:hover {
-    transform: scale(1.1);
-}
-
-/* ---------- Currently Playing Section ---------- */
-.currentlyPlaying {
-    position: absolute;
     top: 50%;
-    left: 50%; /* Offset half of sidebar width */
+    left: 50%;
     transform: translate(-50%, -50%);
-    flex-direction: column;
-    text-align: center;
-    align-items: center;
-    justify-content: center;
-    z-index: 2;
-    width: auto;
+    z-index: 10;
     max-width: 80vw;
+    margin: 0;
+    font-size: clamp(1.2rem, 4vh, 2.5rem);
+    font-weight: 700;
+    text-align: center;
+    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
 }
 
-.currentlyPlaying img {
-    height: 40vh;
-    width: auto;
-    max-width: 40vh;
-    border-radius: 12px;
-    object-fit: cover;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
-    margin-bottom: 1.5rem;
-    display: block;
-}
-
-#bgImage, #bgVideo {
+#statusMessage[hidden] {
     display: none;
 }
 
-/* ---------- Titles ---------- */
-#songTitle, #danceTitle {
-    font-size: clamp(1.5rem, 5vh, 3.5rem);
-    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
-    margin: 0.25rem 0;
-}
-
-#danceTitle {
-    color: #f0f0f0;
-    visibility: hidden;
-}
-
-/* ---------- Sidebar (Up Next) ---------- */
-#upNextColumn {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: var(--sidebar-width);
-    max-height: 100vh;
-    max-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-evenly;
-    align-items: center;
-    padding: 0.4rem 0;
-    box-sizing: border-box;
-    overflow: hidden;
-    background: transparent;
-    z-index: 2;
-}
-
-#songsList {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-evenly;
-    align-items: center;
-    flex: 1 1 auto;
-    min-height: 0;
-    width: 100%;
-    overflow: hidden;
-}
-
-.songItem {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    flex: 0 1 auto;
-    min-height: 0;
-    max-width: 100%;
-}
-
-
-.songItem img,
-#qrCodeContainer canvas,
-#qrCodeContainer > img {
-    width: var(--tile-size);
-    height: var(--tile-size);
-    max-width: 100%;
-    border-radius: 10px;
-    object-fit: cover;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-}
-
-#qrCodeContainer canvas,
-#qrCodeContainer > img {
-    object-fit: contain;
-    background: #fff;
-}
-
-.songItem span {
-    margin-top: 0.25rem;
-    margin-bottom: 0.35rem;
-    font-weight: bold;
-    font-size: var(--song-label-size);
-    line-height: 1.2;
-    max-width: 100%;
-    padding: 0 0.35rem;
-    box-sizing: border-box;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.8);
-}
-
-/* ---------- Buttons ---------- */
-#bottomButtons {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    /* transform: translateX(-50%); */
-    display: flex;
-    gap: 12px;          /* space between buttons */
-    z-index: 1000;
-}
-
+/* ---------- Shared button look (menus, popovers, dialogs) ---------- */
 .action-btn {
     padding: 14px 22px;
     font-size: 16px;
     font-weight: 600;
+    border: none;
     border-radius: 12px;
     color: #fff;
     cursor: pointer;
@@ -209,80 +59,61 @@ body {
     display: inline-block;
 }
 
-/* Individual button colors */
-#openPopoutBtn {
-    background: linear-gradient(135deg, #1db954, #1ed760);
-}
-
-#openPopoutBtn:hover {
-    background: linear-gradient(135deg, #1ed760, #1db954);
-    transform: scale(1.05);
-}
-
-#partnerDanceBtn {
-    background: linear-gradient(135deg, #ff7e5f, #feb47b);
-}
-
-#partnerDanceBtn:hover {
-    background: linear-gradient(135deg, #feb47b, #ff7e5f);
-    transform: scale(1.05);
-}
-
-#uploadBgBtn {
-    background: linear-gradient(135deg, #6a5af9, #8e8fff);
-}
-
-#uploadBgBtn:hover {
-    background: linear-gradient(135deg, #8e8fff, #6a5af9);
-    transform: scale(1.05);
-}
-
-
-#hideQueueBtn {
-    background: linear-gradient(135deg, #5fc7ff, #7baffe);
-}
-
-#hideQueueBtn:hover {
-    background: linear-gradient(135deg, #5fc7ff, #7baffe);
-    transform: scale(1.05);
-}
-
-#togglePollingBtn {
-    background: linear-gradient(135deg, #6a5af9, #8e8fff);
-}
-
-#togglePollingBtn:hover {
-    background: linear-gradient(135deg, #8e8fff, #6a5af9);
-    transform: scale(1.05);
-}
-
-
-
-/* Fullscreen button */
-#fullscreenBtn {
+/* ---------- Set Dance popover ---------- */
+.set-dance-form {
     position: fixed;
-    bottom: 70px;
-    right: 20px;
-    background: rgba(0, 0, 0, 0.6);
-    opacity: 0;
-    pointer-events: none;
-    padding: 12px 18px;
+    z-index: 100003;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 14px;
+    background: rgba(18, 18, 18, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
 }
 
-#fullscreenBtn.visible {
-    opacity: 1;
-    pointer-events: auto;
+.set-dance-form[hidden] {
+    display: none;
 }
 
-#fullscreenBtn:hover {
-    background: rgba(30, 215, 96, 0.9);
+#danceNameInput {
+    padding: 12px 14px;
+    font-size: 15px;
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    min-width: 160px;
+    outline: none;
+}
+
+#danceNameInput::placeholder {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+#danceNameInput:focus {
+    border-color: #f0c14b;
+}
+
+#danceNameSubmit {
+    background: linear-gradient(135deg, #e6a817, #f0c14b);
+    color: #1a1a1a;
+    text-shadow: none;
+}
+
+#danceNameSubmit:hover {
+    background: linear-gradient(135deg, #f0c14b, #e6a817);
+    transform: scale(1.05);
 }
 
 /* ---------- Session Timeout Overlay ---------- */
 #sessionOverlay {
     position: fixed;
     inset: 0;
-    z-index: 3000;
+    /* Above the background editor and settings menu */
+    z-index: 200000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -326,11 +157,3 @@ body {
     cursor: wait;
     opacity: 0.7;
 }
-
-#qrCodeContainer {
-    flex: 0 0 auto;
-    width: var(--tile-size);
-    min-height: 0;
-}
-
-
