@@ -11,7 +11,10 @@ node_modules
 dist
 dist-ssr
 dist-e2e
+coverage
 test-results
+playwright-report
+*.tsbuildinfo
 *.local
 .wrangler
 .dev.vars
